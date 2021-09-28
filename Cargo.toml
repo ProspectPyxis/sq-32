@@ -1,9 +1,9 @@
 [package]
-name = "sq-50"
+name = "sq-32"
 version = "0.1.0"
 edition = "2021"
 description = "A draughts/checkers engine written in Rust."
-repository = "https://github.com/ProspectPyxis/sq-50"
+repository = "https://github.com/ProspectPyxis/sq-32"
 license = "GPL-3.0-or-later"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
