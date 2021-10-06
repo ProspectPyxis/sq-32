@@ -131,6 +131,10 @@ impl Board {
         Ok(())
     }
 
+    pub fn set_to_fen(&mut self, fen: &str) -> Result<(), &str> {
+        Ok(())
+    }
+
     fn get_piece_at_pos(&self, pos: u8) -> Option<Piece> {
         if pos > 31 {
             return None;
