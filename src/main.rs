@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut b = Board::new();
 
     b.set_piece(Some(WHITE_MAN), 20)?;
-    b.verify();
+    b.validate();
     println!("{}", b.to_console_string());
 
     Ok(())

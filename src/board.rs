@@ -81,7 +81,7 @@ impl Board {
         full_string
     }
 
-    pub fn verify(&self) {
+    pub fn validate(&self) {
         if self.white & self.black != 0 {
             panic!("Invalid board: at least one square is both white and black at once. (ref: {:#034b})", self.white & self.black);
         }
