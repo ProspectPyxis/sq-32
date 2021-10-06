@@ -1,6 +1,5 @@
-mod board;
+use sq_32::board::*;
 
-use board::*;
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
