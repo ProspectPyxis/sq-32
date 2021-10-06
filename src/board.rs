@@ -38,7 +38,7 @@ pub const BLACK_KING: Piece = Piece {
 };
 
 impl Board {
-    pub fn init() -> Board {
+    pub fn new() -> Board {
         Board {
             white: 0,
             black: 0,
@@ -52,55 +52,30 @@ impl Board {
 
         for n in 0..32 {
             let c = self.get_piece_at_pos(n);
-            let index = n as usize;
-            char_list[index] = get_piece_char(c)
+            char_list[n as usize] = get_piece_char(c);
         }
+
+        let char_chunks = char_list.chunks(8);
 
         let separator = "+---+---+---+---+---+---+---+---+\n";
 
         let mut full_string = separator.to_string();
 
-        // There's probably a cleaner way to do this...
-        full_string += &format!(
-            "|   | {} |   | {} |   | {} |   | {} | 4\n",
-            &char_list[0], &char_list[1], &char_list[2], &char_list[3]
-        );
-        full_string += &separator;
-        full_string += &format!(
-            "| {} |   | {} |   | {} |   | {} |   |\n",
-            &char_list[4], &char_list[5], &char_list[6], &char_list[7]
-        );
-        full_string += &separator;
-        full_string += &format!(
-            "|   | {} |   | {} |   | {} |   | {} | 12\n",
-            &char_list[8], &char_list[9], &char_list[10], &char_list[11]
-        );
-        full_string += &separator;
-        full_string += &format!(
-            "| {} |   | {} |   | {} |   | {} |   |\n",
-            &char_list[12], &char_list[13], &char_list[14], &char_list[15]
-        );
-        full_string += &separator;
-        full_string += &format!(
-            "|   | {} |   | {} |   | {} |   | {} | 20\n",
-            &char_list[16], &char_list[17], &char_list[18], &char_list[19]
-        );
-        full_string += &separator;
-        full_string += &format!(
-            "| {} |   | {} |   | {} |   | {} |   |\n",
-            &char_list[20], &char_list[21], &char_list[22], &char_list[23]
-        );
-        full_string += &separator;
-        full_string += &format!(
-            "|   | {} |   | {} |   | {} |   | {} | 28\n",
-            &char_list[24], &char_list[25], &char_list[26], &char_list[27]
-        );
-        full_string += &separator;
-        full_string += &format!(
-            "| {} |   | {} |   | {} |   | {} |   |\n",
-            &char_list[28], &char_list[29], &char_list[30], &char_list[31]
-        );
-        full_string += &separator;
+        let mut square_count: u8 = 4;
+
+        for chunk in char_chunks {
+            full_string += &format!(
+                "|   | {} |   | {} |   | {} |   | {} | {}\n",
+                &chunk[0], &chunk[1], &chunk[2], &chunk[3], square_count
+            );
+            full_string += &separator;
+            full_string += &format!(
+                "| {} |   | {} |   | {} |   | {} |   |\n",
+                &chunk[4], &chunk[5], &chunk[6], &chunk[7]
+            );
+            full_string += &separator;
+            square_count += 8;
+        }
         full_string.push_str("  29      30      31      32");
 
         full_string
@@ -119,9 +94,9 @@ impl Board {
         }
     }
 
-    pub fn set_piece(&mut self, piece: Option<Piece>, pos: u8) -> Result<(), ()> {
+    pub fn set_piece(&mut self, piece: Option<Piece>, pos: u8) -> Result<(), &str> {
         if pos > 31 {
-            return Err(());
+            return Err("piece index out of bounds");
         }
         match piece {
             None => {
