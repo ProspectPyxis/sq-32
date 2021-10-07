@@ -25,6 +25,13 @@ pub struct Piece {
     pub p_type: PieceType,
 }
 
+pub struct Move {
+    pub from: u8,
+    pub to: u8,
+    pub in_between: Vec<u8>,
+    pub captures: Vec<u8>,
+}
+
 pub const WHITE_MAN: Piece = Piece {
     p_color: Player::White,
     p_type: PieceType::Man,
@@ -147,6 +154,7 @@ impl Board {
         let black_pieces = split_fen[2][1..].split(',');
         let mut empty_squares: Vec<u8> = (0..32).collect();
 
+        // This could probably be refactored to not violate DRY so much
         for mut p in white_pieces {
             let mut is_king = false;
             if p.chars().next().unwrap() == 'K' {
@@ -208,6 +216,14 @@ impl Board {
         } else {
             None
         }
+    }
+
+    // pub fn get_moves_for(&self, player: Player) {}
+
+    pub fn get_piece_moves_at(&self, pos: u8) -> Vec<Move> {
+        let mut moves: Vec<Move> = Vec::new();
+
+        moves
     }
 }
 
