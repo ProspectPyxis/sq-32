@@ -1,12 +1,13 @@
 use crate::utils;
+use crate::utils::squares;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Player {
     White,
     Black,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum PieceType {
     Man,
     King,
@@ -19,17 +20,24 @@ pub struct Board {
     pub kings: u32,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub struct Piece {
     pub p_color: Player,
     pub p_type: PieceType,
 }
 
+#[derive(Clone)]
+pub struct Capture {
+    pub piece: Piece,
+    pub pos: u8,
+}
+
+#[derive(Clone)]
 pub struct Move {
     pub from: u8,
     pub to: u8,
     pub in_between: Vec<u8>,
-    pub captures: Vec<u8>,
+    pub captures: Vec<Capture>,
 }
 
 pub const WHITE_MAN: Piece = Piece {
@@ -155,39 +163,43 @@ impl Board {
         let mut empty_squares: Vec<u8> = (0..32).collect();
 
         // This could probably be refactored to not violate DRY so much
-        for mut p in white_pieces {
-            let mut is_king = false;
-            if p.chars().next().unwrap() == 'K' {
-                p = &p[1..];
-                is_king = true;
+        if split_fen[1][1..].len() != 0 {
+            for mut p in white_pieces {
+                let mut is_king = false;
+                if p.chars().next().unwrap() == 'K' {
+                    p = &p[1..];
+                    is_king = true;
+                }
+                let pos = p.parse::<u8>().unwrap() - 1;
+                self.set_piece(
+                    if is_king {
+                        Some(WHITE_KING)
+                    } else {
+                        Some(WHITE_MAN)
+                    },
+                    pos,
+                )?;
+                empty_squares.retain(|&x| x != pos);
             }
-            let pos = p.parse::<u8>().unwrap() - 1;
-            self.set_piece(
-                if is_king {
-                    Some(WHITE_KING)
-                } else {
-                    Some(WHITE_MAN)
-                },
-                pos,
-            )?;
-            empty_squares.retain(|&x| x != pos);
         }
-        for mut p in black_pieces {
-            let mut is_king = false;
-            if p.chars().next().unwrap() == 'K' {
-                p = &p[1..];
-                is_king = true;
+        if split_fen[2][1..].len() != 0 {
+            for mut p in black_pieces {
+                let mut is_king = false;
+                if p.chars().next().unwrap() == 'K' {
+                    p = &p[1..];
+                    is_king = true;
+                }
+                let pos = p.parse::<u8>().unwrap() - 1;
+                self.set_piece(
+                    if is_king {
+                        Some(BLACK_KING)
+                    } else {
+                        Some(BLACK_MAN)
+                    },
+                    pos,
+                )?;
+                empty_squares.retain(|&x| x != pos);
             }
-            let pos = p.parse::<u8>().unwrap() - 1;
-            self.set_piece(
-                if is_king {
-                    Some(BLACK_KING)
-                } else {
-                    Some(BLACK_MAN)
-                },
-                pos,
-            )?;
-            empty_squares.retain(|&x| x != pos);
         }
         for e in empty_squares {
             self.set_piece(None, e)?;
@@ -218,12 +230,191 @@ impl Board {
         }
     }
 
-    // pub fn get_moves_for(&self, player: Player) {}
+    pub fn make_move(&mut self, m: &Move) -> Result<(), String> {
+        if self.get_piece_at_pos(m.to).is_some() {
+            return Err("target square is occupied".to_string());
+        }
+        let piece = self.get_piece_at_pos(m.from);
+        self.set_piece(None, m.from)?;
+        self.set_piece(piece, m.to)?;
+        if m.captures.len() != 0 {
+            for p in &m.captures {
+                self.set_piece(None, p.pos)?;
+            }
+        }
+        Ok(())
+    }
 
-    pub fn get_piece_moves_at(&self, pos: u8) -> Vec<Move> {
+    pub fn unmake_move(&mut self, m: &Move) -> Result<(), String> {
+        if self.get_piece_at_pos(m.to).is_none() {
+            return Err("invalid move to unmake".to_string());
+        }
+        let piece = self.get_piece_at_pos(m.to);
+        self.set_piece(None, m.to)?;
+        self.set_piece(piece, m.from)?;
+        if m.captures.len() != 0 {
+            for p in &m.captures {
+                self.set_piece(Some(p.piece), p.pos)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_moves_for(&mut self, player: Player) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
 
+        let bitboard = match player {
+            Player::White => self.white,
+            Player::Black => self.black,
+        };
+
+        // First loop - get captures only
+        for n in 0..32 {
+            if bitboard & 1 << n == 0 {
+                continue;
+            }
+            if let Some(mut m) = self.get_captures_from(n) {
+                if m.len() == 0 {
+                    continue;
+                }
+                moves.append(&mut m);
+            }
+        }
+
+        // Second loop - if no captures available, get non-captures
+        if moves.len() == 0 {
+            for n in 0..32 {
+                if bitboard & 1 << n == 0 {
+                    continue;
+                }
+                if let Some(mut m) = self.get_piece_moves_at(n) {
+                    if m.len() == 0 {
+                        continue;
+                    }
+                    moves.append(&mut m);
+                }
+            }
+        }
+
         moves
+    }
+
+    pub fn get_piece_moves_at(&self, pos: u8) -> Option<Vec<Move>> {
+        let mut moves: Vec<Move> = Vec::new();
+
+        let piece = match self.get_piece_at_pos(pos) {
+            Some(p) => p,
+            None => return None,
+        };
+
+        let mut dirs = squares::Dir::as_vec();
+        if let PieceType::Man = piece.p_type {
+            match piece.p_color {
+                Player::White => dirs.retain(|&x| (x as i8) < 0),
+                Player::Black => dirs.retain(|&x| (x as i8) > 0),
+            }
+        }
+
+        for dir in dirs {
+            let neighbor = match squares::get_neighbor_at(pos, dir) {
+                Some(num) => num,
+                None => continue,
+            };
+            if let None = self.get_piece_at_pos(neighbor) {
+                moves.push(Move::new(pos, neighbor));
+            }
+        }
+
+        Some(moves)
+    }
+
+    pub fn get_captures_from(&mut self, pos: u8) -> Option<Vec<Move>> {
+        let mut moves: Vec<Move> = Vec::new();
+
+        let piece = match self.get_piece_at_pos(pos) {
+            Some(p) => p,
+            None => return None,
+        };
+
+        let mut dirs = squares::Dir::as_vec();
+        if let PieceType::Man = piece.p_type {
+            match piece.p_color {
+                Player::White => dirs.retain(|&x| (x as i8) < 0),
+                Player::Black => dirs.retain(|&x| (x as i8) > 0),
+            }
+        }
+
+        let crownhead: u8 = match piece.p_color {
+            Player::White => 0,
+            Player::Black => 7,
+        };
+
+        for dir in dirs {
+            let neighbor = match squares::get_neighbor_at(pos, dir) {
+                Some(num) => num,
+                None => continue,
+            };
+            let target = match self.get_piece_at_pos(neighbor) {
+                Some(p) => p,
+                None => continue,
+            };
+            if target.p_color == piece.p_color {
+                continue;
+            }
+
+            let square_to = squares::multiply_pos(pos, dir, 2);
+            if self.get_piece_at_pos(square_to).is_some() {
+                continue;
+            }
+
+            let mut m = Move::new(pos, square_to);
+            m.captures.push(Capture {
+                piece: target,
+                pos: neighbor,
+            });
+            if square_to >> 2 == crownhead {
+                moves.push(m);
+                continue;
+            }
+            self.make_move(&m)
+                .expect("unexpected error when making move");
+            let submoves = self.get_captures_from(square_to);
+            self.unmake_move(&m)
+                .expect("unexpected error when unmaking move");
+            let submoves = match submoves {
+                Some(v) => v,
+                None => {
+                    moves.push(m);
+                    continue;
+                }
+            };
+            // Can I avoid cloning here or is this the right use?
+            for mut submove in submoves {
+                let mut new_move = m.clone();
+                new_move.in_between.push(m.to);
+                new_move.in_between.append(&mut submove.in_between);
+                new_move.captures.append(&mut submove.captures);
+                new_move.to = submove.to;
+                moves.push(new_move);
+            }
+        }
+
+        if moves.len() > 0 {
+            Some(moves)
+        } else {
+            None
+        }
+    }
+}
+
+impl Move {
+    pub fn new(from: u8, to: u8) -> Move {
+        Move {
+            from,
+            to,
+            in_between: Vec::new(),
+            captures: Vec::new(),
+        }
     }
 }
 

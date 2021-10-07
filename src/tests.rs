@@ -70,3 +70,78 @@ fn multiply_pos() {
     assert_eq!(squares::multiply_pos(12, squares::Dir::SouthEast, 3), 25);
     assert_eq!(squares::multiply_pos(13, squares::Dir::NorthEast, 8), 2);
 }
+
+#[test]
+fn get_moves() {
+    let mut b = Board::new();
+    b.set_to_fen("W:WK18:B:H0:F1").expect("unexpected error");
+
+    let moves = b.get_piece_moves_at(17).expect("movelist is empty");
+    assert_eq!(moves.len(), 4);
+    assert_eq!(moves[1].to, 14);
+}
+
+#[test]
+fn make_move() {
+    let mut b = Board::new();
+    b.set_to_fen("W:W18:B:H0:F1").expect("unexpected error");
+
+    let m = Move::new(17, 14);
+    b.make_move(&m).expect("unexpected error");
+    assert_eq!(b.white, 1 << 14);
+}
+
+#[test]
+fn get_captures() {
+    let mut b = Board::new();
+    b.set_to_fen("W:W22:B10,11,18:H0:F1")
+        .expect("unexpected error");
+
+    let moves = b.get_captures_from(21).expect("movelist is empty");
+    assert_eq!(moves.len(), 2);
+    assert_eq!(moves[0].in_between[0], 14);
+    assert_eq!(moves[0].captures.len(), 2);
+}
+
+#[test]
+fn make_capture() {
+    let mut b = Board::new();
+    b.set_to_fen("W:W22:B10,18:H0:F1")
+        .expect("unexpected error");
+
+    let mut m = Move::new(21, 5);
+    let mut captures: Vec<Capture> = Vec::new();
+    captures.push(Capture {
+        piece: BLACK_MAN,
+        pos: 17,
+    });
+    captures.push(Capture {
+        piece: BLACK_MAN,
+        pos: 9,
+    });
+    m.captures.append(&mut captures);
+    m.in_between.push(14);
+
+    b.make_move(&m).expect("unexpected error");
+    assert_eq!(b.black, 0);
+    assert_eq!(b.white, 1 << 5);
+}
+
+#[test]
+fn get_player_moves() {
+    let mut b = Board::new();
+    b.set_initial().expect("unexpected error");
+
+    let moves = b.get_moves_for(Player::White);
+    assert_eq!(moves.len(), 7);
+}
+
+#[test]
+fn get_player_captures_only() {
+    let mut b = Board::new();
+    b.set_to_fen("W:W8,19,22:B17,18:H0:F1")
+        .expect("unexpected error");
+
+    let moves = b.get_moves_for(Player::White);
+    assert_eq!(moves.len(), 2);
+}

@@ -36,21 +36,23 @@ pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
     let white_pieces = split_fen[1][1..].split(',');
     let mut white_board: u32 = 0;
 
-    for mut p in white_pieces {
-        if p.chars().next().unwrap_or(' ') == 'K' {
-            p = &p[1..];
+    if split_fen[1][1..].len() != 0 {
+        for mut p in white_pieces {
+            if p.chars().next().unwrap_or(' ') == 'K' {
+                p = &p[1..];
+            }
+            let p = match p.parse::<u8>() {
+                Ok(num) => num,
+                Err(e) => return Err(format!("pos parse error: {:?}", e.kind())),
+            };
+            if p < 1 || p > 32 {
+                return Err(format!(
+                    "white piece position is out of bounds (expected between 1 and 32, got {})",
+                    p
+                ));
+            }
+            white_board |= 1 << (p - 1);
         }
-        let p = match p.parse::<u8>() {
-            Ok(num) => num,
-            Err(e) => return Err(format!("pos parse error: {:?}", e.kind())),
-        };
-        if p < 1 || p > 32 {
-            return Err(format!(
-                "white piece position is out of bounds (expected between 1 and 32, got {})",
-                p
-            ));
-        }
-        white_board |= 1 << (p - 1);
     }
 
     let black_first_char = split_fen[2].chars().next().unwrap_or('_');
@@ -63,22 +65,24 @@ pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
 
     let black_pieces = split_fen[2][1..].split(',');
 
-    for mut p in black_pieces {
-        if p.chars().next().unwrap_or(' ') == 'K' {
-            p = &p[1..];
-        }
-        let p = match p.parse::<u8>() {
-            Ok(num) => num,
-            Err(e) => return Err(format!("pos parse error: {:?}", e.kind())),
-        };
-        if p < 1 || p > 32 {
-            return Err(format!(
-                "black piece position is out of bounds (expected between 1 and 32, got {})",
-                p
-            ));
-        }
-        if white_board & (1 << (p - 1)) != 0 {
-            return Err(format!("pos {} has both a black and white piece", p));
+    if split_fen[2][1..].len() != 0 {
+        for mut p in black_pieces {
+            if p.chars().next().unwrap_or(' ') == 'K' {
+                p = &p[1..];
+            }
+            let p = match p.parse::<u8>() {
+                Ok(num) => num,
+                Err(e) => return Err(format!("pos parse error: {:?}", e.kind())),
+            };
+            if p < 1 || p > 32 {
+                return Err(format!(
+                    "black piece position is out of bounds (expected between 1 and 32, got {})",
+                    p
+                ));
+            }
+            if white_board & (1 << (p - 1)) != 0 {
+                return Err(format!("pos {} has both a black and white piece", p));
+            }
         }
     }
 
@@ -119,15 +123,13 @@ pub mod squares {
     }
 
     impl Dir {
-        pub fn iterator() -> impl Iterator<Item = Dir> {
-            [
+        pub fn as_vec() -> Vec<Dir> {
+            vec![
                 Dir::NorthWest,
                 Dir::NorthEast,
                 Dir::SouthEast,
                 Dir::SouthWest,
             ]
-            .iter()
-            .copied()
         }
     }
 
