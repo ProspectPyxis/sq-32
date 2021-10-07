@@ -111,11 +111,24 @@ pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
 
 pub mod squares {
     #[derive(Copy, Clone)]
-    pub enum Dirs {
+    pub enum Dir {
         NorthWest = -9,
         NorthEast = -7,
         SouthEast = 9,
         SouthWest = 7,
+    }
+
+    impl Dir {
+        pub fn iterator() -> impl Iterator<Item = Dir> {
+            [
+                Dir::NorthWest,
+                Dir::NorthEast,
+                Dir::SouthEast,
+                Dir::SouthWest,
+            ]
+            .iter()
+            .copied()
+        }
     }
 
     pub fn to_absolute(pos: u8) -> u8 {
@@ -136,7 +149,7 @@ pub mod squares {
         }
     }
 
-    pub fn get_neighbor_at(pos: u8, dir: Dirs) -> Option<u8> {
+    pub fn get_neighbor_at(pos: u8, dir: Dir) -> Option<u8> {
         let new_abs = to_absolute(pos) as i8 + dir as i8;
 
         if new_abs < 0 || new_abs > 63 {
@@ -146,7 +159,7 @@ pub mod squares {
         }
     }
 
-    pub fn multiply_pos(pos: u8, dir: Dirs, by: u8) -> u8 {
+    pub fn multiply_pos(pos: u8, dir: Dir, by: u8) -> u8 {
         let mut new_pos = pos;
         for _ in 0..by {
             match get_neighbor_at(new_pos, dir) {

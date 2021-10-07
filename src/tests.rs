@@ -56,17 +56,17 @@ fn from_absolute() {
 #[test]
 fn get_neighbors() {
     assert_eq!(
-        squares::get_neighbor_at(9, squares::Dirs::NorthWest).expect("error"),
+        squares::get_neighbor_at(9, squares::Dir::NorthWest).expect("error"),
         5
     );
     assert_eq!(
-        squares::get_neighbor_at(23, squares::Dirs::SouthEast).expect("error"),
+        squares::get_neighbor_at(23, squares::Dir::SouthEast).expect("error"),
         27
     );
 }
 
 #[test]
 fn multiply_pos() {
-    assert_eq!(squares::multiply_pos(12, squares::Dirs::SouthEast, 3), 25);
-    assert_eq!(squares::multiply_pos(13, squares::Dirs::NorthEast, 8), 2);
+    assert_eq!(squares::multiply_pos(12, squares::Dir::SouthEast, 3), 25);
+    assert_eq!(squares::multiply_pos(13, squares::Dir::NorthEast, 8), 2);
 }
