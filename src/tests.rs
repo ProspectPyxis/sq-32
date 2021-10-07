@@ -145,3 +145,15 @@ fn get_player_captures_only() {
     let moves = b.get_moves_for(Player::White);
     assert_eq!(moves.len(), 2);
 }
+
+#[test]
+fn piece_promotion() {
+    let mut b = Board::new();
+    b.set_to_fen("W:W6:B:H0:F1").expect("unexpected error");
+
+    let mut m = Move::new(5, 0);
+    m.promote = true;
+
+    b.make_move(&m).expect("unexpected error");
+    assert_eq!(b.kings, 1);
+}

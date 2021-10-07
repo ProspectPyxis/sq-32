@@ -38,6 +38,7 @@ pub struct Move {
     pub to: u8,
     pub in_between: Vec<u8>,
     pub captures: Vec<Capture>,
+    pub promote: bool,
 }
 
 pub const WHITE_MAN: Piece = Piece {
@@ -234,9 +235,12 @@ impl Board {
         if self.get_piece_at_pos(m.to).is_some() {
             return Err("target square is occupied".to_string());
         }
-        let piece = self.get_piece_at_pos(m.from);
+        let mut piece = self.get_piece_at_pos(m.from).unwrap();
+        if m.promote {
+            piece.p_type = PieceType::King;
+        }
         self.set_piece(None, m.from)?;
-        self.set_piece(piece, m.to)?;
+        self.set_piece(Some(piece), m.to)?;
         if m.captures.len() != 0 {
             for p in &m.captures {
                 self.set_piece(None, p.pos)?;
@@ -249,9 +253,12 @@ impl Board {
         if self.get_piece_at_pos(m.to).is_none() {
             return Err("invalid move to unmake".to_string());
         }
-        let piece = self.get_piece_at_pos(m.to);
+        let mut piece = self.get_piece_at_pos(m.to).unwrap();
+        if m.promote {
+            piece.p_type = PieceType::Man;
+        }
         self.set_piece(None, m.to)?;
-        self.set_piece(piece, m.from)?;
+        self.set_piece(Some(piece), m.from)?;
         if m.captures.len() != 0 {
             for p in &m.captures {
                 self.set_piece(Some(p.piece), p.pos)?;
@@ -315,13 +322,22 @@ impl Board {
             }
         }
 
+        let crownhead: u8 = match piece.p_color {
+            Player::White => 0,
+            Player::Black => 7,
+        };
+
         for dir in dirs {
             let neighbor = match squares::get_neighbor_at(pos, dir) {
                 Some(num) => num,
                 None => continue,
             };
             if let None = self.get_piece_at_pos(neighbor) {
-                moves.push(Move::new(pos, neighbor));
+                let mut m = Move::new(pos, neighbor);
+                if piece.p_type == PieceType::Man && neighbor >> 2 == crownhead {
+                    m.promote = true;
+                }
+                moves.push(m);
             }
         }
 
@@ -373,6 +389,7 @@ impl Board {
                 pos: neighbor,
             });
             if square_to >> 2 == crownhead {
+                m.promote = true;
                 moves.push(m);
                 continue;
             }
@@ -414,6 +431,7 @@ impl Move {
             to,
             in_between: Vec::new(),
             captures: Vec::new(),
+            promote: false,
         }
     }
 }
