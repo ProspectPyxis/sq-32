@@ -1,10 +1,12 @@
 use crate::utils;
 
+#[derive(PartialEq, Eq)]
 pub enum PieceColor {
     White,
     Black,
 }
 
+#[derive(PartialEq, Eq)]
 pub enum PieceType {
     Man,
     King,
@@ -17,6 +19,7 @@ pub struct Board {
     pub kings: u32,
 }
 
+#[derive(PartialEq, Eq)]
 pub struct Piece {
     pub p_color: PieceColor,
     pub p_type: PieceType,
@@ -211,15 +214,11 @@ impl Board {
 fn get_piece_char(piece: Option<Piece>) -> char {
     match piece {
         None => ' ',
-        Some(p) => match p.p_color {
-            PieceColor::White => match p.p_type {
-                PieceType::Man => 'M',
-                PieceType::King => 'K',
-            },
-            PieceColor::Black => match p.p_type {
-                PieceType::Man => 'm',
-                PieceType::King => 'k',
-            },
+        Some(p) => match p {
+            WHITE_MAN => 'M',
+            BLACK_MAN => 'm',
+            WHITE_KING => 'K',
+            BLACK_KING => 'k',
         },
     }
 }
