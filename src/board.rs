@@ -1,3 +1,5 @@
+use crate::utils;
+
 pub enum PieceColor {
     White,
     Black,
@@ -36,6 +38,9 @@ pub const BLACK_KING: Piece = Piece {
     p_color: PieceColor::Black,
     p_type: PieceType::King,
 };
+
+pub const INITIAL_BOARD_FEN: &str =
+    "W:W21,22,23,24,25,26,27,28,29,30,31,32:B1,2,3,4,5,6,7,8,9,10,11,12:H0:F1";
 
 impl Board {
     pub fn new() -> Board {
@@ -94,7 +99,7 @@ impl Board {
         }
     }
 
-    pub fn set_piece(&mut self, piece: Option<Piece>, pos: u8) -> Result<(), &str> {
+    pub fn set_piece(&mut self, piece: Option<Piece>, pos: u8) -> Result<&mut Board, &str> {
         if pos > 31 {
             return Err("piece index out of bounds");
         }
@@ -128,11 +133,60 @@ impl Board {
                 }
             }
         }
-        Ok(())
+        Ok(self)
     }
 
-    pub fn set_to_fen(&mut self, fen: &str) -> Result<(), &str> {
-        Ok(())
+    pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Board, String> {
+        let fen = utils::validate_fen(fen)?.to_ascii_uppercase();
+        let split_fen: Vec<&str> = fen.split(':').collect();
+
+        let white_pieces = split_fen[1][1..].split(',');
+        let black_pieces = split_fen[2][1..].split(',');
+        let mut empty_squares: Vec<u8> = (0..32).collect();
+
+        for mut p in white_pieces {
+            let mut is_king = false;
+            if p.chars().next().unwrap() == 'K' {
+                p = &p[1..];
+                is_king = true;
+            }
+            let pos = p.parse::<u8>().unwrap() - 1;
+            self.set_piece(
+                if is_king {
+                    Some(WHITE_KING)
+                } else {
+                    Some(WHITE_MAN)
+                },
+                pos,
+            )?;
+            empty_squares.retain(|&x| x != pos);
+        }
+        for mut p in black_pieces {
+            let mut is_king = false;
+            if p.chars().next().unwrap() == 'K' {
+                p = &p[1..];
+                is_king = true;
+            }
+            let pos = p.parse::<u8>().unwrap() - 1;
+            self.set_piece(
+                if is_king {
+                    Some(BLACK_KING)
+                } else {
+                    Some(BLACK_MAN)
+                },
+                pos,
+            )?;
+            empty_squares.retain(|&x| x != pos);
+        }
+        for e in empty_squares {
+            self.set_piece(None, e)?;
+        }
+
+        Ok(self)
+    }
+
+    pub fn set_initial(&mut self) -> Result<&mut Board, String> {
+        self.set_to_fen(INITIAL_BOARD_FEN)
     }
 
     fn get_piece_at_pos(&self, pos: u8) -> Option<Piece> {

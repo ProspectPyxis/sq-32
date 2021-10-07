@@ -5,7 +5,7 @@ use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
     let mut b = Board::new();
 
-    b.set_piece(Some(WHITE_MAN), 20)?;
+    b.set_to_fen(INITIAL_BOARD_FEN)?;
     b.validate();
     println!("{}", b.to_console_string());
 
