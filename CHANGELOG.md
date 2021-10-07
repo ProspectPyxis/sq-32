@@ -8,3 +8,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - New board module
 - Function to set pieces on the board one by one
+- Function to set the board based on a draughts FEN string
