@@ -1,7 +1,7 @@
 use crate::utils;
 
 #[derive(PartialEq, Eq)]
-pub enum PieceColor {
+pub enum Player {
     White,
     Black,
 }
@@ -21,24 +21,24 @@ pub struct Board {
 
 #[derive(PartialEq, Eq)]
 pub struct Piece {
-    pub p_color: PieceColor,
+    pub p_color: Player,
     pub p_type: PieceType,
 }
 
 pub const WHITE_MAN: Piece = Piece {
-    p_color: PieceColor::White,
+    p_color: Player::White,
     p_type: PieceType::Man,
 };
 pub const WHITE_KING: Piece = Piece {
-    p_color: PieceColor::White,
+    p_color: Player::White,
     p_type: PieceType::King,
 };
 pub const BLACK_MAN: Piece = Piece {
-    p_color: PieceColor::Black,
+    p_color: Player::Black,
     p_type: PieceType::Man,
 };
 pub const BLACK_KING: Piece = Piece {
-    p_color: PieceColor::Black,
+    p_color: Player::Black,
     p_type: PieceType::King,
 };
 
@@ -115,11 +115,11 @@ impl Board {
             }
             Some(p) => {
                 match p.p_color {
-                    PieceColor::White => {
+                    Player::White => {
                         self.white |= 1 << pos;
                         self.black &= !(1 << pos);
                     }
-                    PieceColor::Black => {
+                    Player::Black => {
                         self.white &= !(1 << pos);
                         self.black |= 1 << pos;
                     }
