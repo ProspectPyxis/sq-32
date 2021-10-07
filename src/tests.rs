@@ -1,4 +1,5 @@
 use crate::board::*;
+use crate::game::*;
 use crate::utils;
 use crate::utils::squares;
 
@@ -130,7 +131,7 @@ fn make_capture() {
 #[test]
 fn get_player_moves() {
     let mut b = Board::new();
-    b.set_initial().expect("unexpected error");
+    b.set_initial();
 
     let moves = b.get_moves_for(Player::White);
     assert_eq!(moves.len(), 7);
@@ -156,4 +157,60 @@ fn piece_promotion() {
 
     b.make_move(&m).expect("unexpected error");
     assert_eq!(b.kings, 1);
+}
+
+#[test]
+fn set_game_to_fen() {
+    let mut g = Game::new();
+
+    g.set_to_fen("B:W29,30,31,32:B1,2,3,4:H12:F8")
+        .expect("validation failed");
+    assert_eq!(g.current_player, Player::Black);
+    assert_eq!(g.halfmove_clock, 12);
+    assert_eq!(g.fullmove_number, 8);
+}
+
+#[test]
+fn match_move_to_str() {
+    let m = Move::new(0, 5);
+
+    assert!(m.match_string("1-6"));
+}
+
+#[test]
+fn match_capture_to_str() {
+    let mut m = Move::new(0, 16);
+    m.captures.push(Capture {
+        piece: WHITE_MAN,
+        pos: 5,
+    });
+    m.captures.push(Capture {
+        piece: WHITE_MAN,
+        pos: 13,
+    });
+    m.in_between.push(9);
+
+    assert!(m.match_string("1x17"));
+    assert!(m.match_string("1x10x17"));
+    assert!(!m.match_string("1-17"));
+}
+
+#[test]
+fn make_string_move() {
+    let mut g = Game::new();
+    g.set_to_fen("W:W18:B1:H0:F1").expect("unexpected error");
+
+    g.make_move("18-15").expect("move failed");
+
+    assert_eq!(g.board.white, 1 << 14);
+}
+
+#[test]
+fn switch_players_after_move() {
+    let mut g = Game::new();
+    g.set_to_fen("W:W18:B1:H0:F1").expect("unexpected error");
+
+    g.make_move("18-15").expect("move failed");
+
+    assert_eq!(g.current_player, Player::Black);
 }

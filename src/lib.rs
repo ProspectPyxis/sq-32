@@ -1,4 +1,6 @@
 pub mod board;
+pub mod game;
+pub mod run;
 pub mod utils;
 
 #[cfg(test)]

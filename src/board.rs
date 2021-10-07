@@ -1,7 +1,6 @@
-use crate::utils;
 use crate::utils::squares;
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum Player {
     White,
     Black,
@@ -156,64 +155,53 @@ impl Board {
     }
 
     pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Board, String> {
-        let fen = utils::validate_fen(fen)?.to_ascii_uppercase();
+        // Clear the board
+        *self = Board::new();
         let split_fen: Vec<&str> = fen.split(':').collect();
 
-        let white_pieces = split_fen[1][1..].split(',');
-        let black_pieces = split_fen[2][1..].split(',');
-        let mut empty_squares: Vec<u8> = (0..32).collect();
-
-        // This could probably be refactored to not violate DRY so much
-        if split_fen[1][1..].len() != 0 {
-            for mut p in white_pieces {
-                let mut is_king = false;
-                if p.chars().next().unwrap() == 'K' {
-                    p = &p[1..];
-                    is_king = true;
-                }
-                let pos = p.parse::<u8>().unwrap() - 1;
-                self.set_piece(
-                    if is_king {
-                        Some(WHITE_KING)
-                    } else {
-                        Some(WHITE_MAN)
-                    },
-                    pos,
-                )?;
-                empty_squares.retain(|&x| x != pos);
-            }
-        }
-        if split_fen[2][1..].len() != 0 {
-            for mut p in black_pieces {
-                let mut is_king = false;
-                if p.chars().next().unwrap() == 'K' {
-                    p = &p[1..];
-                    is_king = true;
-                }
-                let pos = p.parse::<u8>().unwrap() - 1;
-                self.set_piece(
-                    if is_king {
-                        Some(BLACK_KING)
-                    } else {
-                        Some(BLACK_MAN)
-                    },
-                    pos,
-                )?;
-                empty_squares.retain(|&x| x != pos);
-            }
-        }
-        for e in empty_squares {
-            self.set_piece(None, e)?;
-        }
+        self.set_piece_by_fen_field(split_fen[1])?;
+        self.set_piece_by_fen_field(split_fen[2])?;
 
         Ok(self)
     }
 
-    pub fn set_initial(&mut self) -> Result<&mut Board, String> {
-        self.set_to_fen(INITIAL_BOARD_FEN)
+    pub fn set_piece_by_fen_field(&mut self, fen_field: &str) -> Result<(), String> {
+        let col = match fen_field.chars().next().unwrap_or(' ') {
+            'W' => Player::White,
+            'B' => Player::Black,
+            _ => return Err("invalid start of string".to_string()),
+        };
+        let fen_field = &fen_field[1..];
+
+        if fen_field.len() == 0 {
+            return Ok(());
+        }
+
+        for mut p in fen_field.split(',') {
+            let mut piece_type = PieceType::Man;
+            if p.chars().next().unwrap() == 'K' {
+                p = &p[1..];
+                piece_type = PieceType::King;
+            }
+            let pos = p.parse::<u8>().unwrap() - 1;
+            self.set_piece(
+                Some(Piece {
+                    p_color: col,
+                    p_type: piece_type,
+                }),
+                pos,
+            )?;
+        }
+
+        Ok(())
     }
 
-    fn get_piece_at_pos(&self, pos: u8) -> Option<Piece> {
+    pub fn set_initial(&mut self) -> &mut Board {
+        self.set_to_fen(INITIAL_BOARD_FEN)
+            .expect("unexpected error")
+    }
+
+    pub fn get_piece_at_pos(&self, pos: u8) -> Option<Piece> {
         if pos > 31 {
             return None;
         }
@@ -433,6 +421,63 @@ impl Move {
             captures: Vec::new(),
             promote: false,
         }
+    }
+
+    pub fn match_string(&self, movestr: &str) -> bool {
+        if movestr
+            .chars()
+            .any(|x| !x.is_numeric() && x != '-' && x != 'x')
+        {
+            return false;
+        }
+
+        // Move string cannot be both a capture and a normal move at once
+        if movestr.chars().any(|x| x == '-') && movestr.chars().any(|x| x == 'x') {
+            return false;
+        }
+
+        let separator = if movestr.chars().any(|x| x == '-') {
+            '-'
+        } else {
+            'x'
+        };
+
+        let mut iterator = movestr.split(separator);
+
+        let from = match iterator.next().unwrap().parse::<u8>() {
+            Ok(num) => num - 1,
+            Err(_) => return false,
+        };
+        if from != self.from {
+            return false;
+        }
+        let to = match iterator.next_back().unwrap().parse::<u8>() {
+            Ok(num) => num - 1,
+            Err(_) => return false,
+        };
+        if to != self.to {
+            return false;
+        }
+
+        if self.captures.len() != 0 && separator != 'x' {
+            return false;
+        }
+        if self.captures.len() == 0 && separator != '-' {
+            return false;
+        }
+
+        for m in iterator {
+            let in_between = match m.parse::<u8>() {
+                Ok(num) => num - 1,
+                Err(_) => return false,
+            };
+
+            if !self.in_between.contains(&in_between) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
