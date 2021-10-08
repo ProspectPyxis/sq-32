@@ -11,4 +11,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Function to set the board based on a draughts FEN string
 - Functions to fetch/make moves on board
 - Game struct to hold all game data
+- Game can check winners/losers
 - CLI interface
