@@ -6,7 +6,21 @@ sq-32 is a draughts/checkers engine written in Rust. Currently, it also comes pa
 
 ## Installation
 
--- WIP --
+Currently, the only way to use sq-32 is to build from source. This requires a local [Rust environment](https://www.rust-lang.org/tools/install).
+
+```bash
+git clone https://github.com/ProspectPyxis/sq-32.git
+# Or download the source code from the latest release and untar
+
+cd sq-32/
+cargo build --release
+# Due to the program's very early alpha stage, installing directly is not recommended yet!
+
+# To run the program:
+./target/release/sq-32
+```
+
+Building only the sq-32 library for use with other crates is currently untested.
 
 ## Usage
 
