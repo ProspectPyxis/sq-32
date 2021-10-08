@@ -400,6 +400,7 @@ impl Board {
                 new_move.in_between.append(&mut submove.in_between);
                 new_move.captures.append(&mut submove.captures);
                 new_move.to = submove.to;
+                new_move.promote = submove.promote;
                 moves.push(new_move);
             }
         }
