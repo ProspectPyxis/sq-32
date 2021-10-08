@@ -25,6 +25,62 @@ impl Container {
             config: Config::new(),
         }
     }
+    pub fn parse_and_execute(
+        &mut self,
+        cmd: &str,
+        is_console: bool,
+    ) -> Result<&mut Container, String> {
+        if cmd.trim().len() == 0 {
+            return Ok(self);
+        }
+
+        let split_cmd = cmd.split_whitespace().collect::<Vec<_>>();
+
+        let get_arg_at = |pos| {
+            split_cmd
+                .get(pos)
+                .ok_or(format!("not enough arguments (required at least {})", pos))
+        };
+
+        match split_cmd[0] {
+            "init" => {
+                self.game.init();
+                if self.config.print_after_commands && is_console {
+                    self.game.print();
+                }
+            }
+            "fen" => {
+                self.game.set_to_fen(&get_arg_at(1)?)?;
+                if self.config.print_after_commands && is_console {
+                    self.game.print();
+                }
+            }
+            "move" => {
+                self.game.make_move(&get_arg_at(1)?)?;
+                if self.config.print_after_commands && is_console {
+                    self.game.print();
+                }
+            }
+            "print" => {
+                if !is_console {
+                    return Err("cannot print if not in console mode".to_string());
+                } else {
+                    self.game.print();
+                }
+            }
+            "set" => match *get_arg_at(1)? {
+                "print_after_commands" => {
+                    self.config.print_after_commands =
+                        get_arg_at(2)?.chars().next().unwrap_or('0') != '0';
+                }
+                _ => return Err(format!("invalid config option {}", split_cmd[1])),
+            },
+            "exit" => return Err("exit".to_string()),
+            _ => return Err("invalid command".to_string()),
+        };
+
+        Ok(self)
+    }
 }
 
 pub fn run_cli() {
@@ -38,7 +94,7 @@ pub fn run_cli() {
             continue;
         }
 
-        if let Err(e) = parse_and_execute(&mut c, cmd.as_str(), true) {
+        if let Err(e) = c.parse_and_execute(cmd.as_str(), true) {
             if e.as_str() == "exit" {
                 return;
             } else {
@@ -46,60 +102,4 @@ pub fn run_cli() {
             }
         }
     }
-}
-
-pub fn parse_and_execute<'a>(
-    c: &'a mut Container,
-    cmd: &str,
-    is_console: bool,
-) -> Result<&'a mut Container, String> {
-    if cmd.trim().len() == 0 {
-        return Ok(c);
-    }
-
-    let split_cmd = cmd.split_whitespace().collect::<Vec<_>>();
-
-    let get_arg_at = |pos| {
-        split_cmd
-            .get(pos)
-            .ok_or(format!("not enough arguments (required at least {})", pos))
-    };
-
-    match split_cmd[0] {
-        "init" => {
-            c.game.init();
-            if c.config.print_after_commands && is_console {
-                c.game.print();
-            }
-        }
-        "fen" => {
-            c.game.set_to_fen(&get_arg_at(1)?)?;
-            if c.config.print_after_commands && is_console {
-                c.game.print();
-            }
-        }
-        "move" => {
-            c.game.make_move(&get_arg_at(1)?)?;
-            if c.config.print_after_commands && is_console {
-                c.game.print();
-            }
-        }
-        "print" => {
-            if !is_console {
-                return Err("cannot print if not in console mode".to_string());
-            } else {
-                c.game.print();
-            }
-        }
-        "set" => match *get_arg_at(1)? {
-            "print_after_commands" => {
-                c.config.print_after_commands = get_arg_at(2)?.chars().next().unwrap_or('0') != '0';
-            }
-            _ => return Err(format!("invalid config option {}", split_cmd[1])),
-        },
-        "exit" => return Err("exit".to_string()),
-        _ => return Err("invalid command".to_string()),
-    };
-
-    Ok(c)
 }
