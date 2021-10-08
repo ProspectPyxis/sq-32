@@ -118,8 +118,8 @@ impl Game {
         }
 
         let m = self.get_move_from_str(movestr)?;
-        self.prev_moves
-            .push(MoveWithHalfmove::new(m.clone(), self.halfmove_clock));
+        let prev_halfmove_clock = self.halfmove_clock;
+
         if m.captures.len() == 0
             && self.board.get_piece_at_pos(m.from).unwrap().p_type == PieceType::King
         {
@@ -135,6 +135,8 @@ impl Game {
                 Player::White
             }
         };
+        self.prev_moves
+            .push(MoveWithHalfmove::new(m, prev_halfmove_clock));
 
         self.winner = self.check_winner();
 
