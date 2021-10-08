@@ -1,3 +1,4 @@
+use crate::ai;
 use crate::game::*;
 use std::io;
 
@@ -101,6 +102,12 @@ impl Container {
                     }
                 }
             },
+            "go" => {
+                ai::go(&mut self.game);
+                if self.config.print_after_commands && is_console {
+                    self.game.print();
+                }
+            }
             "print" => {
                 if !is_console {
                     return Err("cannot print if not in console mode".to_string());
