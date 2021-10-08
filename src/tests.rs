@@ -214,3 +214,13 @@ fn switch_players_after_move() {
 
     assert_eq!(g.current_player, Player::Black);
 }
+
+#[test]
+fn check_winner_after_move() {
+    let mut g = Game::new();
+    g.set_to_fen("W:W18:B15:H0:F1").expect("unexpected error");
+
+    g.make_move("18x11").expect("move failed");
+
+    assert_eq!(g.winner.unwrap(), Winner::White);
+}

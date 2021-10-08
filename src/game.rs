@@ -1,12 +1,15 @@
 use crate::board::*;
 use crate::utils;
+use std::fmt;
 
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum DrawReason {
     Agreement,
     MoveLimit,
     ThreefoldRepetition,
 }
 
+#[derive(Debug, PartialEq)]
 pub enum Winner {
     White,
     Black,
@@ -19,6 +22,20 @@ pub struct Game {
     pub halfmove_clock: u32,
     pub fullmove_number: u32,
     pub winner: Option<Winner>,
+}
+
+impl fmt::Display for Winner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match *self {
+            Winner::White => write!(f, "white won"),
+            Winner::Black => write!(f, "black won"),
+            Winner::Draw(reason) => match reason {
+                DrawReason::Agreement => write!(f, "draw by agreement"),
+                DrawReason::MoveLimit => write!(f, "draw by 40 move rule"),
+                DrawReason::ThreefoldRepetition => write!(f, "draw by threefold repetition"),
+            },
+        }
+    }
 }
 
 impl Game {
@@ -46,7 +63,11 @@ impl Game {
         let mut full_string = self.board.to_console_string();
 
         full_string.push_str("\n\n");
-        full_string += &format!("{:?} to move\n", self.current_player);
+        if let None = self.winner {
+            full_string += &format!("{:?} to move\n", self.current_player);
+        } else {
+            full_string += &format!("Game over, {}\n", self.winner.as_ref().unwrap());
+        }
         full_string += &format!(
             "Half moves = {}, Full moves = {}",
             self.halfmove_clock, self.fullmove_number
@@ -99,6 +120,8 @@ impl Game {
             }
         };
 
+        self.winner = self.check_winner();
+
         Ok(self)
     }
 
@@ -120,5 +143,20 @@ impl Game {
             // Can I avoid using clone here?
             Ok(moves[0].clone())
         }
+    }
+
+    pub fn check_winner(&mut self) -> Option<Winner> {
+        if self.board.get_moves_for(self.current_player).len() == 0 {
+            return Some(match self.current_player {
+                Player::White => Winner::Black,
+                Player::Black => Winner::White,
+            });
+        }
+
+        if self.halfmove_clock >= 80 {
+            return Some(Winner::Draw(DrawReason::MoveLimit));
+        }
+
+        None
     }
 }
