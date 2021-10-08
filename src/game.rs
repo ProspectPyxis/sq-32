@@ -46,14 +46,9 @@ impl Game {
         let mut full_string = self.board.to_console_string();
 
         full_string.push_str("\n\n");
-        full_string.push_str(match self.current_player {
-            Player::White => "White",
-            Player::Black => "Black",
-        });
-        full_string.push_str(" to move\n");
-
+        full_string += &format!("{:?} to move\n", self.current_player);
         full_string += &format!(
-            "Half moves = {}, Full moves = {}\n",
+            "Half moves = {}, Full moves = {}",
             self.halfmove_clock, self.fullmove_number
         );
 
