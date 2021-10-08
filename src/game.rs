@@ -9,7 +9,7 @@ pub enum DrawReason {
     ThreefoldRepetition,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Winner {
     White,
     Black,
@@ -27,6 +27,7 @@ pub struct Game {
     pub halfmove_clock: u32,
     pub fullmove_number: u32,
     pub prev_moves: Vec<MoveWithHalfmove>,
+    pub start_fen: String,
     pub winner: Option<Winner>,
 }
 
@@ -58,7 +59,8 @@ impl Game {
             halfmove_clock: 0,
             fullmove_number: 1,
             prev_moves: Vec::new(),
-            winner: None,
+            start_fen: String::new(),
+            winner: Some(Winner::Draw(DrawReason::Agreement)),
         }
     }
 
@@ -68,6 +70,7 @@ impl Game {
         self.halfmove_clock = 0;
         self.fullmove_number = 1;
         self.prev_moves = Vec::new();
+        self.start_fen = INITIAL_BOARD_FEN.to_string();
         self.winner = None;
 
         self
@@ -94,6 +97,101 @@ impl Game {
         println!("{}", self.get_console_string());
     }
 
+    pub fn get_fen(&self) -> String {
+        let mut fen = String::new();
+
+        fen.push(match self.current_player {
+            Player::White => 'W',
+            Player::Black => 'B',
+        });
+        fen.push_str(":W");
+        for n in 0..32 {
+            if self.board.white & 1 << n != 0 {
+                if self.board.kings & 1 << n != 0 {
+                    fen.push('K');
+                }
+                fen.push_str(format!("{},", n + 1).as_str());
+            }
+        }
+        if fen.pop().unwrap() == 'W' {
+            fen.push('W');
+        }
+        fen.push_str(":B");
+        for n in 0..32 {
+            if self.board.black & 1 << n != 0 {
+                if self.board.kings & 1 << n != 0 {
+                    fen.push('K');
+                }
+                fen.push_str(format!("{},", n + 1).as_str());
+            }
+        }
+        if fen.pop().unwrap() == 'B' {
+            fen.push('B');
+        }
+        fen.push_str(format!(":H{}:F{}", self.halfmove_clock, self.fullmove_number).as_str());
+
+        fen
+    }
+
+    pub fn get_partial_pdn(&self) -> String {
+        let mut pdn = String::new();
+        if self.start_fen.len() == 0 && self.prev_moves.len() == 0 {
+            return pdn;
+        }
+
+        pdn.push_str(
+            format!(
+                "[Result \"{}\"]\n",
+                match self.winner {
+                    None => "*",
+                    Some(winner) => match winner {
+                        Winner::White => "1-0",
+                        Winner::Black => "0-1",
+                        Winner::Draw(_) => "1/2-1/2",
+                    },
+                }
+            )
+            .as_str(),
+        );
+        if self.start_fen.as_str() != INITIAL_BOARD_FEN {
+            pdn.push_str(format!("[FEN \"{}\"]\n", self.start_fen).as_str());
+        }
+        pdn.push('\n');
+
+        let mut history_iter = self.prev_moves.iter();
+        let mut full_move = 1;
+
+        if self.start_fen.chars().next().unwrap() == 'B' {
+            pdn.push_str(
+                format!("1... {} ", history_iter.next().unwrap().m.to_string(false)).as_str(),
+            );
+            full_move += 1;
+        }
+
+        let history_iter = history_iter.collect::<Vec<_>>();
+        let history_iter = history_iter.chunks(2);
+
+        for h in history_iter {
+            if h.len() == 2 {
+                pdn.push_str(
+                    format!(
+                        "{}. {} {} ",
+                        full_move,
+                        h[0].m.to_string(false),
+                        h[1].m.to_string(false)
+                    )
+                    .as_str(),
+                );
+                full_move += 1;
+            } else {
+                pdn.push_str(format!("{}. {} ", full_move, h[0].m.to_string(false)).as_str());
+            }
+        }
+        pdn.push('*');
+
+        pdn
+    }
+
     pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Game, String> {
         let fen = utils::validate_fen(fen)?.to_ascii_uppercase();
 
@@ -108,6 +206,7 @@ impl Game {
 
         self.halfmove_clock = split_fen[3][1..].parse::<u32>().unwrap();
         self.fullmove_number = split_fen[4][1..].parse::<u32>().unwrap();
+        self.start_fen = fen.to_string();
 
         Ok(self)
     }

@@ -1,9 +1,19 @@
 use crate::ai;
+use crate::board::Player;
 use crate::game::*;
 use std::io;
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum AutoGo {
+    Off,
+    White,
+    Black,
+    Both,
+}
+
 pub struct Config {
     pub print_after_commands: bool,
+    pub auto_go: AutoGo,
 }
 
 pub struct Container {
@@ -11,10 +21,22 @@ pub struct Container {
     pub config: Config,
 }
 
+impl AutoGo {
+    pub fn player_matches(&self, player: Player) -> bool {
+        match self {
+            AutoGo::Both => true,
+            AutoGo::White => player == Player::White,
+            AutoGo::Black => player == Player::Black,
+            AutoGo::Off => false,
+        }
+    }
+}
+
 impl Config {
     pub fn new() -> Config {
         Config {
             print_after_commands: true,
+            auto_go: AutoGo::Off,
         }
     }
 }
@@ -44,18 +66,33 @@ impl Container {
                 .ok_or(format!("not enough arguments (required at least {})", pos))
         };
 
+        let mut state_changed = false;
+
         match split_cmd[0] {
             "init" => {
                 self.game.init();
-                if self.config.print_after_commands && is_console {
-                    self.game.print();
-                }
+                state_changed = true;
             }
-            "fen" => {
-                self.game.set_to_fen(&get_arg_at(1)?)?;
-                if self.config.print_after_commands && is_console {
-                    self.game.print();
+            "fen" => match *get_arg_at(1)? {
+                "get" => {
+                    if !is_console {
+                        return Err("cannot use this command if not in console mode".to_string());
+                    }
+                    println!("Current position FEN: {}", self.game.get_fen());
                 }
+                _ => {
+                    self.game.set_to_fen(&get_arg_at(1)?)?;
+                    state_changed = true;
+                }
+            },
+            "pdn" => {
+                if !is_console {
+                    return Err("cannot use this command if not in console mode".to_string());
+                }
+                println!(
+                    "Partial PDN for this game:\n{}",
+                    self.game.get_partial_pdn()
+                );
             }
             "move" => match *get_arg_at(1)? {
                 "list" => {
@@ -91,22 +128,19 @@ impl Container {
                     for _ in 0..count {
                         self.game.undo()?;
                     }
-                    if self.config.print_after_commands && is_console {
-                        self.game.print();
-                    }
+                    state_changed = true;
                 }
                 _ => {
                     self.game.make_move(&get_arg_at(1)?)?;
-                    if self.config.print_after_commands && is_console {
-                        self.game.print();
-                    }
+                    state_changed = true;
                 }
             },
             "go" => {
-                ai::go(&mut self.game);
-                if self.config.print_after_commands && is_console {
-                    self.game.print();
+                if let Some(_) = self.game.winner {
+                    return Err("cannot go because game is already over".to_string());
                 }
+                ai::go(&mut self.game);
+                state_changed = true;
             }
             "print" => {
                 if !is_console {
@@ -119,12 +153,36 @@ impl Container {
                 "print_after_commands" => {
                     self.config.print_after_commands =
                         get_arg_at(2)?.chars().next().unwrap_or('0') != '0';
+                    println!(
+                        "print_after_commands = {}",
+                        self.config.print_after_commands
+                    );
+                }
+                "auto_go" => {
+                    match *get_arg_at(2)? {
+                        "off" => self.config.auto_go = AutoGo::Off,
+                        "white" => self.config.auto_go = AutoGo::White,
+                        "black" => self.config.auto_go = AutoGo::Black,
+                        "both" => self.config.auto_go = AutoGo::Both,
+                        _ => return Err("invalid auto_go option (must be one of \"off\", \"white\", \"black\", \"both\")".to_string()),
+                    };
+                    println!("auto_go = {:?}", self.config.auto_go);
                 }
                 _ => return Err(format!("invalid config option {}", split_cmd[1])),
             },
             "exit" => return Err("exit".to_string()),
             _ => return Err("invalid command".to_string()),
         };
+
+        if state_changed {
+            if self.config.auto_go.player_matches(self.game.current_player)
+                && self.game.winner.is_none()
+            {
+                return self.parse_and_execute("go", is_console);
+            } else if self.config.print_after_commands && is_console {
+                self.game.print();
+            }
+        }
 
         Ok(self)
     }
@@ -140,6 +198,7 @@ pub fn run_cli() {
             eprintln!("command read failed: {:?}", e);
             continue;
         }
+        cmd.make_ascii_lowercase();
 
         if let Err(e) = c.parse_and_execute(cmd.as_str(), true) {
             if e.as_str() == "exit" {
