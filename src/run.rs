@@ -25,6 +25,7 @@ impl Container {
             config: Config::new(),
         }
     }
+
     pub fn parse_and_execute(
         &mut self,
         cmd: &str,
@@ -55,12 +56,28 @@ impl Container {
                     self.game.print();
                 }
             }
-            "move" => {
-                self.game.make_move(&get_arg_at(1)?)?;
-                if self.config.print_after_commands && is_console {
-                    self.game.print();
+            "move" => match *get_arg_at(1)? {
+                "list" => {
+                    if !is_console {
+                        return Err("cannot use this command if not in console mode".to_string());
+                    }
+                    let movelist = self
+                        .game
+                        .board
+                        .get_moves_for(self.game.current_player)
+                        .iter()
+                        .map(|x| x.to_string(true))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    println!("available moves:\n{}", movelist);
                 }
-            }
+                _ => {
+                    self.game.make_move(&get_arg_at(1)?)?;
+                    if self.config.print_after_commands && is_console {
+                        self.game.print();
+                    }
+                }
+            },
             "print" => {
                 if !is_console {
                     return Err("cannot print if not in console mode".to_string());

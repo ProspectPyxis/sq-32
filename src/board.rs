@@ -479,6 +479,28 @@ impl Move {
 
         true
     }
+
+    pub fn to_string(&self, bracket_capture: bool) -> String {
+        if self.captures.len() == 0 {
+            format!("{}-{}", self.from + 1, self.to + 1)
+        } else {
+            let mut movestr = format!("{}", self.from + 1);
+            if self.in_between.len() != 0 {
+                if bracket_capture {
+                    movestr.push('(');
+                }
+                for i in &self.in_between {
+                    movestr.push_str(format!("x{}", i + 1).as_str());
+                }
+                if bracket_capture {
+                    movestr.push(')');
+                }
+            }
+            movestr.push_str(format!("x{}", self.to + 1).as_str());
+
+            movestr
+        }
+    }
 }
 
 fn get_piece_char(piece: Option<Piece>) -> char {
