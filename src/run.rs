@@ -71,6 +71,29 @@ impl Container {
                         .join(", ");
                     println!("available moves:\n{}", movelist);
                 }
+                "undo" => {
+                    let mut count = 1;
+                    if let Ok(numstr) = get_arg_at(2) {
+                        count = match numstr.parse::<usize>() {
+                            Ok(num) => {
+                                if num < 1 {
+                                    1
+                                } else {
+                                    num
+                                }
+                            }
+                            Err(e) => {
+                                return Err(format!("undo count parse error: {:?}", e.kind()))
+                            }
+                        };
+                    }
+                    for _ in 0..count {
+                        self.game.undo()?;
+                    }
+                    if self.config.print_after_commands && is_console {
+                        self.game.print();
+                    }
+                }
                 _ => {
                     self.game.make_move(&get_arg_at(1)?)?;
                     if self.config.print_after_commands && is_console {

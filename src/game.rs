@@ -16,11 +16,18 @@ pub enum Winner {
     Draw(DrawReason),
 }
 
+pub struct MoveWithReverse {
+    pub m: Move,
+    pub halfmove: u32,
+    pub fullmove: u32,
+}
+
 pub struct Game {
     pub board: Board,
     pub current_player: Player,
     pub halfmove_clock: u32,
     pub fullmove_number: u32,
+    pub prev_moves: Vec<MoveWithReverse>,
     pub winner: Option<Winner>,
 }
 
@@ -38,6 +45,16 @@ impl fmt::Display for Winner {
     }
 }
 
+impl MoveWithReverse {
+    pub fn new(m: Move, halfmove: u32, fullmove: u32) -> MoveWithReverse {
+        MoveWithReverse {
+            m,
+            halfmove,
+            fullmove,
+        }
+    }
+}
+
 impl Game {
     pub fn new() -> Game {
         Game {
@@ -45,6 +62,7 @@ impl Game {
             current_player: Player::White,
             halfmove_clock: 0,
             fullmove_number: 1,
+            prev_moves: Vec::new(),
             winner: None,
         }
     }
@@ -54,6 +72,7 @@ impl Game {
         self.current_player = Player::White;
         self.halfmove_clock = 0;
         self.fullmove_number = 1;
+        self.prev_moves = Vec::new();
         self.winner = None;
 
         self
@@ -121,6 +140,22 @@ impl Game {
         };
 
         self.winner = self.check_winner();
+
+        Ok(self)
+    }
+
+    pub fn undo(&mut self) -> Result<&mut Game, String> {
+        if self.prev_moves.len() == 0 {
+            return Ok(self);
+        }
+
+        let to_undo = self
+            .prev_moves
+            .pop()
+            .ok_or("unexpected error".to_string())?;
+        self.board.unmake_move(&to_undo.m)?;
+        self.halfmove_clock = to_undo.halfmove;
+        self.fullmove_number = to_undo.fullmove;
 
         Ok(self)
     }
