@@ -12,6 +12,7 @@ pub enum PieceType {
     King,
 }
 
+#[derive(Clone)]
 pub struct Board {
     pub white: u32,
     pub black: u32,

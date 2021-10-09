@@ -16,11 +16,13 @@ pub enum Winner {
     Draw(DrawReason),
 }
 
+#[derive(Clone)]
 pub struct MoveWithHalfmove {
     pub m: Move,
     pub halfmove: u32,
 }
 
+#[derive(Clone)]
 pub struct Game {
     pub board: Board,
     pub current_player: Player,
@@ -211,6 +213,21 @@ impl Game {
         Ok(self)
     }
 
+    pub fn get_rewound_state(&self, count: usize) -> Result<Game, String> {
+        if count > self.prev_moves.len() {
+            return Err("invalid rewind length".to_string());
+        }
+
+        let mut rewound_game = self.clone();
+        let to_rewind = rewound_game.prev_moves.len() - count;
+
+        for _ in 0..to_rewind {
+            rewound_game.undo()?;
+        }
+
+        Ok(rewound_game)
+    }
+
     pub fn make_move(&mut self, movestr: &str) -> Result<&mut Game, String> {
         if let Some(_) = self.winner {
             return Err("cannot make moves if game is already over".to_string());
@@ -260,6 +277,7 @@ impl Game {
                 Player::Black
             }
         };
+        self.winner = None;
 
         Ok(self)
     }

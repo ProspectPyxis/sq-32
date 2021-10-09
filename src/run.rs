@@ -154,6 +154,16 @@ impl Container {
                 self.game.make_move(mv.to_string(false).as_str())?;
                 state_changed = true;
             }
+            "rew" | "rewind" => {
+                let count = match get_arg_at(1)?.parse::<usize>() {
+                    Ok(num) => num,
+                    Err(e) => return Err(format!("count parse error: {:?}", e.kind())),
+                };
+
+                let rewound = self.game.get_rewound_state(count)?;
+                println!("Rewound game state at move {}:", count);
+                rewound.print();
+            }
             "print" => {
                 if !is_console {
                     return Err("cannot print if not in console mode".to_string());
