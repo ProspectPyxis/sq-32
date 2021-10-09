@@ -139,7 +139,8 @@ impl Container {
                 if let Some(_) = self.game.winner {
                     return Err("cannot go because game is already over".to_string());
                 }
-                ai::go(&mut self.game);
+                let mv = ai::go(&mut self.game).unwrap();
+                self.game.make_move(mv.to_string(false).as_str())?;
                 state_changed = true;
             }
             "print" => {
