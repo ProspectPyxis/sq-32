@@ -130,6 +130,17 @@ impl Container {
                     }
                     state_changed = true;
                 }
+                "hist" | "history" => {
+                    let mut history = "Full move history:\n".to_string();
+                    let mut pos = 1;
+
+                    for m in &self.game.prev_moves {
+                        history.push_str(format!("{}. {}\n", pos, m.m.to_string(false)).as_str());
+                        pos += 1;
+                    }
+
+                    println!("{}", history);
+                }
                 _ => {
                     self.game.make_move(&get_arg_at(1)?)?;
                     state_changed = true;
@@ -171,7 +182,7 @@ impl Container {
                 }
                 _ => return Err(format!("invalid config option {}", split_cmd[1])),
             },
-            "exit" => return Err("exit".to_string()),
+            "exit" | "quit" | "q" => return Err("exit".to_string()),
             _ => return Err("invalid command".to_string()),
         };
 
