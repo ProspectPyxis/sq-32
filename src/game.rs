@@ -82,7 +82,7 @@ impl Game {
         let mut full_string = self.board.to_console_string();
 
         full_string.push_str("\n\n");
-        if let None = self.winner {
+        if self.winner.is_none() {
             full_string += &format!("{:?} to move\n", self.current_player);
         } else {
             full_string += &format!("Game over, {}\n", self.winner.as_ref().unwrap());
@@ -137,7 +137,7 @@ impl Game {
 
     pub fn get_partial_pdn(&self) -> String {
         let mut pdn = String::new();
-        if self.start_fen.len() == 0 && self.prev_moves.len() == 0 {
+        if self.start_fen.is_empty() && self.prev_moves.is_empty() {
             return pdn;
         }
 
@@ -163,7 +163,7 @@ impl Game {
         let mut history_iter = self.prev_moves.iter();
         let mut full_move = 1;
 
-        if self.start_fen.chars().next().unwrap() == 'B' {
+        if self.start_fen.starts_with('B') {
             pdn.push_str(
                 format!("1... {} ", history_iter.next().unwrap().m.to_string(false)).as_str(),
             );
@@ -229,14 +229,14 @@ impl Game {
     }
 
     pub fn make_move(&mut self, movestr: &str) -> Result<&mut Game, String> {
-        if let Some(_) = self.winner {
+        if self.winner.is_some() {
             return Err("cannot make moves if game is already over".to_string());
         }
 
         let m = self.get_move_from_str(movestr)?;
         let prev_halfmove_clock = self.halfmove_clock;
 
-        if m.captures.len() == 0
+        if m.captures.is_empty()
             && self.board.get_piece_at_pos(m.from).unwrap().p_type == PieceType::King
         {
             self.halfmove_clock += 1;
@@ -260,7 +260,7 @@ impl Game {
     }
 
     pub fn undo(&mut self) -> Result<&mut Game, String> {
-        if self.prev_moves.len() == 0 {
+        if self.prev_moves.is_empty() {
             return Ok(self);
         }
 
@@ -286,7 +286,7 @@ impl Game {
         let mut moves = self.board.get_moves_for(self.current_player);
         moves.retain(|x| x.match_string(movestr));
 
-        if moves.len() == 0 {
+        if moves.is_empty() {
             Err(format!(
                 "no move \"{}\" found for {:?}",
                 movestr, self.current_player
@@ -303,7 +303,7 @@ impl Game {
     }
 
     pub fn check_winner(&mut self) -> Option<Winner> {
-        if self.board.get_moves_for(self.current_player).len() == 0 {
+        if self.board.get_moves_for(self.current_player).is_empty() {
             return Some(match self.current_player {
                 Player::White => Winner::Black,
                 Player::Black => Winner::White,

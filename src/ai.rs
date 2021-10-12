@@ -3,7 +3,7 @@ use crate::game::*;
 
 pub fn go(g: &mut Game) -> Option<Move> {
     let moves = g.board.get_moves_for(g.current_player);
-    if moves.len() == 0 {
+    if moves.is_empty() {
         return None;
     }
     let rand = if moves.len() > 1 {

@@ -36,7 +36,7 @@ pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
     let white_pieces = split_fen[1][1..].split(',');
     let mut white_board: u32 = 0;
 
-    if split_fen[1][1..].len() != 0 {
+    if !split_fen[1][1..].is_empty() {
         for mut p in white_pieces {
             if p.chars().next().unwrap_or(' ') == 'K' {
                 p = &p[1..];
@@ -45,7 +45,7 @@ pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
                 Ok(num) => num,
                 Err(e) => return Err(format!("pos parse error: {:?}", e.kind())),
             };
-            if p < 1 || p > 32 {
+            if !(1..=32).contains(&p) {
                 return Err(format!(
                     "white piece position is out of bounds (expected between 1 and 32, got {})",
                     p
@@ -65,7 +65,7 @@ pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
 
     let black_pieces = split_fen[2][1..].split(',');
 
-    if split_fen[2][1..].len() != 0 {
+    if !split_fen[2][1..].is_empty() {
         for mut p in black_pieces {
             if p.chars().next().unwrap_or(' ') == 'K' {
                 p = &p[1..];
@@ -74,7 +74,7 @@ pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
                 Ok(num) => num,
                 Err(e) => return Err(format!("pos parse error: {:?}", e.kind())),
             };
-            if p < 1 || p > 32 {
+            if !(1..=32).contains(&p) {
                 return Err(format!(
                     "black piece position is out of bounds (expected between 1 and 32, got {})",
                     p
@@ -134,7 +134,7 @@ pub mod squares {
     }
 
     pub fn to_absolute(pos: u8) -> u8 {
-        (pos + 1 << 1) - ((pos >> 2 & 1) + 1)
+        ((pos + 1) << 1) - ((pos >> 2 & 1) + 1)
     }
 
     pub fn from_absolute(abs: u8) -> Option<u8> {
@@ -143,7 +143,7 @@ pub mod squares {
             return None;
         }
 
-        let new_pos = (abs as i8 + offset as i8 + 1 >> 1) - 1;
+        let new_pos = ((abs as i8 + offset as i8 + 1) >> 1) - 1;
         if new_pos < 0 {
             None
         } else {
@@ -154,7 +154,7 @@ pub mod squares {
     pub fn get_neighbor_at(pos: u8, dir: Dir) -> Option<u8> {
         let new_abs = to_absolute(pos) as i8 + dir as i8;
 
-        if new_abs < 0 || new_abs > 63 {
+        if !(0..=63).contains(&new_abs) {
             None
         } else {
             from_absolute(new_abs as u8)

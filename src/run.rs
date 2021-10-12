@@ -54,7 +54,7 @@ impl Container {
         cmd: &str,
         is_console: bool,
     ) -> Result<&mut Container, String> {
-        if cmd.trim().len() == 0 {
+        if cmd.trim().is_empty() {
             return Ok(self);
         }
 
@@ -81,7 +81,7 @@ impl Container {
                     println!("Current position FEN: {}", self.game.get_fen());
                 }
                 _ => {
-                    self.game.set_to_fen(&get_arg_at(1)?)?;
+                    self.game.set_to_fen(get_arg_at(1)?)?;
                     state_changed = true;
                 }
             },
@@ -142,12 +142,12 @@ impl Container {
                     println!("{}", history);
                 }
                 _ => {
-                    self.game.make_move(&get_arg_at(1)?)?;
+                    self.game.make_move(get_arg_at(1)?)?;
                     state_changed = true;
                 }
             },
             "go" => {
-                if let Some(_) = self.game.winner {
+                if self.game.winner.is_some() {
                     return Err("cannot go because game is already over".to_string());
                 }
                 let mv = ai::go(&mut self.game).unwrap();

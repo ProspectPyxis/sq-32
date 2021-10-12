@@ -92,12 +92,12 @@ impl Board {
                 "|   | {} |   | {} |   | {} |   | {} | {}\n",
                 &chunk[0], &chunk[1], &chunk[2], &chunk[3], square_count
             );
-            full_string += &separator;
+            full_string += separator;
             full_string += &format!(
                 "| {} |   | {} |   | {} |   | {} |   |\n",
                 &chunk[4], &chunk[5], &chunk[6], &chunk[7]
             );
-            full_string += &separator;
+            full_string += separator;
             square_count += 8;
         }
         full_string.push_str("  29      30      31      32");
@@ -174,13 +174,13 @@ impl Board {
         };
         let fen_field = &fen_field[1..];
 
-        if fen_field.len() == 0 {
+        if fen_field.is_empty() {
             return Ok(());
         }
 
         for mut p in fen_field.split(',') {
             let mut piece_type = PieceType::Man;
-            if p.chars().next().unwrap() == 'K' {
+            if p.starts_with('K') {
                 p = &p[1..];
                 piece_type = PieceType::King;
             }
@@ -230,7 +230,7 @@ impl Board {
         }
         self.set_piece(None, m.from)?;
         self.set_piece(Some(piece), m.to)?;
-        if m.captures.len() != 0 {
+        if !m.captures.is_empty() {
             for p in &m.captures {
                 self.set_piece(None, p.pos)?;
             }
@@ -248,7 +248,7 @@ impl Board {
         }
         self.set_piece(None, m.to)?;
         self.set_piece(Some(piece), m.from)?;
-        if m.captures.len() != 0 {
+        if !m.captures.is_empty() {
             for p in &m.captures {
                 self.set_piece(Some(p.piece), p.pos)?;
             }
@@ -270,7 +270,7 @@ impl Board {
                 continue;
             }
             if let Some(mut m) = self.get_captures_from(n) {
-                if m.len() == 0 {
+                if m.is_empty() {
                     continue;
                 }
                 moves.append(&mut m);
@@ -278,13 +278,13 @@ impl Board {
         }
 
         // Second loop - if no captures available, get non-captures
-        if moves.len() == 0 {
+        if moves.is_empty() {
             for n in 0..32 {
                 if bitboard & 1 << n == 0 {
                     continue;
                 }
                 if let Some(mut m) = self.get_piece_moves_at(n) {
-                    if m.len() == 0 {
+                    if m.is_empty() {
                         continue;
                     }
                     moves.append(&mut m);
@@ -321,7 +321,7 @@ impl Board {
                 Some(num) => num,
                 None => continue,
             };
-            if let None = self.get_piece_at_pos(neighbor) {
+            if self.get_piece_at_pos(neighbor).is_none() {
                 let mut m = Move::new(pos, neighbor);
                 if piece.p_type == PieceType::Man && neighbor >> 2 == crownhead {
                     m.promote = true;
@@ -406,7 +406,7 @@ impl Board {
             }
         }
 
-        if moves.len() > 0 {
+        if !moves.is_empty() {
             Some(moves)
         } else {
             None
@@ -461,10 +461,10 @@ impl Move {
             return false;
         }
 
-        if self.captures.len() != 0 && separator != 'x' {
+        if !self.captures.is_empty() && separator != 'x' {
             return false;
         }
-        if self.captures.len() == 0 && separator != '-' {
+        if self.captures.is_empty() && separator != '-' {
             return false;
         }
 
@@ -483,11 +483,11 @@ impl Move {
     }
 
     pub fn to_string(&self, bracket_capture: bool) -> String {
-        if self.captures.len() == 0 {
+        if self.captures.is_empty() {
             format!("{}-{}", self.from + 1, self.to + 1)
         } else {
             let mut movestr = format!("{}", self.from + 1);
-            if self.in_between.len() != 0 {
+            if !self.in_between.is_empty() {
                 if bracket_capture {
                     movestr.push('(');
                 }
