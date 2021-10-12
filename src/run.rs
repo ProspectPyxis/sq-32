@@ -19,6 +19,7 @@ pub struct Config {
 pub struct Container {
     pub game: Game,
     pub config: Config,
+    pub console: bool,
 }
 
 impl AutoGo {
@@ -47,25 +48,16 @@ impl Config {
     }
 }
 
-impl Default for Container {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Container {
-    pub fn new() -> Container {
+    pub fn new(console: bool) -> Container {
         Container {
             game: Game::new(),
             config: Config::new(),
+            console,
         }
     }
 
-    pub fn parse_and_execute(
-        &mut self,
-        cmd: &str,
-        is_console: bool,
-    ) -> Result<&mut Container, String> {
+    pub fn parse_and_execute(&mut self, cmd: &str) -> Result<&mut Container, String> {
         if cmd.trim().is_empty() {
             return Ok(self);
         }
@@ -87,7 +79,7 @@ impl Container {
             }
             "fen" => match *get_arg_at(1)? {
                 "get" => {
-                    if !is_console {
+                    if !self.console {
                         return Err("cannot use this command if not in console mode".to_string());
                     }
                     println!("Current position FEN: {}", self.game.get_fen());
@@ -98,7 +90,7 @@ impl Container {
                 }
             },
             "pdn" => {
-                if !is_console {
+                if !self.console {
                     return Err("cannot use this command if not in console mode".to_string());
                 }
                 println!(
@@ -108,7 +100,7 @@ impl Container {
             }
             "move" => match *get_arg_at(1)? {
                 "list" => {
-                    if !is_console {
+                    if !self.console {
                         return Err("cannot use this command if not in console mode".to_string());
                     }
                     let movelist = self
@@ -177,7 +169,7 @@ impl Container {
                 rewound.print();
             }
             "print" => {
-                if !is_console {
+                if !self.console {
                     return Err("cannot print if not in console mode".to_string());
                 } else {
                     self.game.print();
@@ -212,8 +204,8 @@ impl Container {
             if self.config.auto_go.player_matches(self.game.current_player)
                 && self.game.winner.is_none()
             {
-                return self.parse_and_execute("go", is_console);
-            } else if self.config.print_after_commands && is_console {
+                return self.parse_and_execute("go");
+            } else if self.config.print_after_commands && self.console {
                 self.game.print();
             }
         }
@@ -223,7 +215,7 @@ impl Container {
 }
 
 pub fn run_cli() {
-    let mut c = Container::new();
+    let mut c = Container::new(true);
 
     println!("sq-32 0.1.0");
     loop {
@@ -234,7 +226,7 @@ pub fn run_cli() {
         }
         cmd.make_ascii_lowercase();
 
-        if let Err(e) = c.parse_and_execute(cmd.as_str(), true) {
+        if let Err(e) = c.parse_and_execute(cmd.as_str()) {
             if e.as_str() == "exit" {
                 return;
             } else {
