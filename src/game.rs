@@ -303,8 +303,7 @@ impl Game {
                 moves.len()
             ))
         } else {
-            // Can I avoid using clone here?
-            Ok(moves[0].clone())
+            Ok(moves.pop().expect("moves.len() > 0; should never fail"))
         }
     }
 
