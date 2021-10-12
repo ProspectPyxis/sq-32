@@ -62,7 +62,7 @@ impl Game {
             fullmove_number: 1,
             prev_moves: Vec::new(),
             start_fen: String::new(),
-            winner: Some(Winner::Draw(DrawReason::Agreement)),
+            winner: None,
         }
     }
 

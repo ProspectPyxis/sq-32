@@ -1,5 +1,5 @@
 // TODO: Optimize this function, heavily
-pub fn validate_fen<'a>(fen: &'a str) -> Result<&'a str, String> {
+pub fn validate_fen(fen: &str) -> Result<&str, String> {
     if !fen.is_ascii() {
         return Err("provided FEN is not a valid ASCII string".to_string());
     }
