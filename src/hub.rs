@@ -86,4 +86,8 @@ impl Scanner<'_> {
     pub fn is_divider(c: char) -> bool {
         c.is_whitespace() || c == '=' || c == '"'
     }
+
+    pub fn is_done(&mut self) -> bool {
+        self.0.peek().is_none()
+    }
 }
