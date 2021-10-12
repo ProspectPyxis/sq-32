@@ -32,12 +32,24 @@ impl AutoGo {
     }
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Config {
     pub fn new() -> Config {
         Config {
             print_after_commands: true,
             auto_go: AutoGo::Off,
         }
+    }
+}
+
+impl Default for Container {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

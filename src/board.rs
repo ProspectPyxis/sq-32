@@ -61,6 +61,12 @@ pub const BLACK_KING: Piece = Piece {
 pub const INITIAL_BOARD_FEN: &str =
     "W:W21,22,23,24,25,26,27,28,29,30,31,32:B1,2,3,4,5,6,7,8,9,10,11,12:H0:F1";
 
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Board {
     pub fn new() -> Board {
         Board {

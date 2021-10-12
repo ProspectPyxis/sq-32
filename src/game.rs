@@ -53,6 +53,12 @@ impl MoveWithHalfmove {
     }
 }
 
+impl Default for Game {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Game {
     pub fn new() -> Game {
         Game {
@@ -267,7 +273,7 @@ impl Game {
         let to_undo = self
             .prev_moves
             .pop()
-            .ok_or("unexpected error".to_string())?;
+            .ok_or_else(|| "unexpected error".to_string())?;
         self.board.unmake_move(&to_undo.m)?;
         self.halfmove_clock = to_undo.halfmove;
         self.current_player = match self.current_player {
