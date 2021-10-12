@@ -8,12 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Moves can now be undone on the Game instance
 - AI module with random AI implemented
-- New go command to order the AI to make a move
-- New auto\_go config option to have the AI go immediately on its turn
-- New function and command to get the FEN of a game
+- `go` command to order the AI to make a move
+- `auto\_go` config option to have the AI go immediately on its turn
+- Functions and commands to get the FEN and partial PDN of a game
+- `move history` function and command to get previous moves made in the game
+- `move undo` function and command to undo previous moves
+- `rewind` function and command to get a board's previous state
+- `exit` command to safely exit the bot
 
 ## Fixed
 - Fixed a bug where pieces won't promote properly at the end of a capture chain
+
+## Changed
+- Major refactoring, fix most clippy style errors
 
 ## [0.1.0] - 2021-10-08
 ### Added
