@@ -10,7 +10,7 @@ checksum = "b5906476585661c802d50736a92abb1fc6159648d3a9983a26c9aab33bb19346"
 
 [[package]]
 name = "sq-32"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alea",
 ]
