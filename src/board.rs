@@ -205,7 +205,7 @@ impl Board {
 
     pub fn set_initial(&mut self) -> &mut Board {
         self.set_to_fen(INITIAL_BOARD_FEN)
-            .expect("unexpected error")
+            .expect("INITIAL_BOARD_FEN is always valid; should never fail")
     }
 
     pub fn get_piece_at_pos(&self, pos: u8) -> Option<Piece> {

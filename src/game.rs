@@ -207,7 +207,7 @@ impl Game {
         self.current_player = match split_fen[0].chars().next().unwrap_or('_') {
             'W' => Player::White,
             'B' => Player::Black,
-            _ => return Err("unexpected error".to_string()),
+            _ => panic!("FEN is validated already; should never fail"),
         };
 
         self.board.set_to_fen(&fen[..])?;
@@ -273,7 +273,7 @@ impl Game {
         let to_undo = self
             .prev_moves
             .pop()
-            .ok_or_else(|| "unexpected error".to_string())?;
+            .expect("self.prev_moves.len() > 0; should never fail");
         self.board.unmake_move(&to_undo.m)?;
         self.halfmove_clock = to_undo.halfmove;
         self.current_player = match self.current_player {
