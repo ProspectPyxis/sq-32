@@ -111,15 +111,16 @@ fn make_capture() {
         .expect("unexpected error");
 
     let mut m = Move::new(21, 5);
-    let mut captures: Vec<Capture> = Vec::new();
-    captures.push(Capture {
-        piece: BLACK_MAN,
-        pos: 17,
-    });
-    captures.push(Capture {
-        piece: BLACK_MAN,
-        pos: 9,
-    });
+    let mut captures: Vec<Capture> = vec![
+        Capture {
+            piece: BLACK_MAN,
+            pos: 17,
+        },
+        Capture {
+            piece: BLACK_MAN,
+            pos: 9,
+        },
+    ];
     m.captures.append(&mut captures);
     m.in_between.push(14);
 
