@@ -1,5 +1,6 @@
 use crate::ai;
 use crate::board::Player;
+use crate::error::Error;
 use crate::game::*;
 use std::io;
 
@@ -57,7 +58,7 @@ impl Container {
         }
     }
 
-    pub fn parse_and_execute(&mut self, cmd: &str) -> Result<&mut Container, String> {
+    pub fn parse_and_execute(&mut self, cmd: &str) -> Result<&mut Container, Error> {
         if cmd.trim().is_empty() {
             return Ok(self);
         }
@@ -65,9 +66,9 @@ impl Container {
         let split_cmd = cmd.split_whitespace().collect::<Vec<_>>();
 
         let get_arg_at = |pos| {
-            split_cmd
-                .get(pos)
-                .ok_or(format!("not enough arguments (required at least {})", pos))
+            split_cmd.get(pos).ok_or_else(|| {
+                Error::BadDataError(format!("not enough arguments (required at least {})", pos))
+            })
         };
 
         let mut state_changed = false;
@@ -80,7 +81,7 @@ impl Container {
             "fen" => match *get_arg_at(1)? {
                 "get" => {
                     if !self.console {
-                        return Err("cannot use this command if not in console mode".to_string());
+                        return Err(Error::Unknown);
                     }
                     println!("Current position FEN: {}", self.game.get_fen());
                 }
@@ -91,7 +92,7 @@ impl Container {
             },
             "pdn" => {
                 if !self.console {
-                    return Err("cannot use this command if not in console mode".to_string());
+                    return Err(Error::Unknown);
                 }
                 println!(
                     "Partial PDN for this game:\n{}",
@@ -101,7 +102,7 @@ impl Container {
             "move" => match *get_arg_at(1)? {
                 "list" => {
                     if !self.console {
-                        return Err("cannot use this command if not in console mode".to_string());
+                        return Err(Error::Unknown);
                     }
                     let movelist = self
                         .game
@@ -124,13 +125,13 @@ impl Container {
                                     num
                                 }
                             }
-                            Err(e) => {
-                                return Err(format!("undo count parse error: {:?}", e.kind()))
-                            }
+                            Err(_) => return Err(Error::Unknown),
                         };
                     }
                     for _ in 0..count {
-                        self.game.undo()?;
+                        if let Err(e) = self.game.undo() {
+                            return Err(Error::GameError(e));
+                        }
                     }
                     state_changed = true;
                 }
@@ -146,31 +147,38 @@ impl Container {
                     println!("{}", history);
                 }
                 _ => {
-                    self.game.make_move(get_arg_at(1)?)?;
+                    if let Err(e) = self.game.make_move(get_arg_at(1)?) {
+                        return Err(Error::GameError(e));
+                    }
                     state_changed = true;
                 }
             },
             "go" => {
                 if self.game.winner.is_some() {
-                    return Err("cannot go because game is already over".to_string());
+                    return Err(Error::Unknown);
                 }
                 let mv = ai::go(&mut self.game).unwrap();
-                self.game.make_move(mv.to_string(false).as_str())?;
+                if let Err(e) = self.game.make_move(mv.to_string(false).as_str()) {
+                    return Err(Error::GameError(e));
+                }
                 state_changed = true;
             }
             "rew" | "rewind" => {
                 let count = match get_arg_at(1)?.parse::<usize>() {
                     Ok(num) => num,
-                    Err(e) => return Err(format!("count parse error: {:?}", e.kind())),
+                    Err(_) => return Err(Error::Unknown),
                 };
 
-                let rewound = self.game.get_rewound_state(count)?;
+                let rewound = match self.game.get_rewound_state(count) {
+                    Ok(r) => r,
+                    Err(e) => return Err(Error::GameError(e)),
+                };
                 println!("Rewound game state at move {}:", count);
                 rewound.print();
             }
             "print" => {
                 if !self.console {
-                    return Err("cannot print if not in console mode".to_string());
+                    return Err(Error::Unknown);
                 } else {
                     self.game.print();
                 }
@@ -190,14 +198,14 @@ impl Container {
                         "white" => self.config.auto_go = AutoGo::White,
                         "black" => self.config.auto_go = AutoGo::Black,
                         "both" => self.config.auto_go = AutoGo::Both,
-                        _ => return Err("invalid auto_go option (must be one of \"off\", \"white\", \"black\", \"both\")".to_string()),
+                        _ => return Err(Error::Unknown),
                     };
                     println!("auto_go = {:?}", self.config.auto_go);
                 }
-                _ => return Err(format!("invalid config option {}", split_cmd[1])),
+                _ => return Err(Error::Unknown),
             },
-            "exit" | "quit" | "q" => return Err("exit".to_string()),
-            _ => return Err("invalid command".to_string()),
+            "exit" | "quit" | "q" => return Err(Error::Generic("exit".to_string())),
+            _ => return Err(Error::Generic("invalid command".to_string())),
         };
 
         if state_changed {
@@ -227,8 +235,10 @@ pub fn run_cli() {
         cmd.make_ascii_lowercase();
 
         if let Err(e) = c.parse_and_execute(cmd.as_str()) {
-            if e.as_str() == "exit" {
-                return;
+            if let Error::Generic(msg) = e {
+                if msg.as_str() == "exit" {
+                    return;
+                }
             } else {
                 eprintln!("{}", e);
             }

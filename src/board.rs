@@ -1,3 +1,4 @@
+use crate::error::GameError;
 use crate::utils::squares;
 
 #[derive(PartialEq, Eq, Copy, Clone, Debug)]
@@ -6,7 +7,7 @@ pub enum Player {
     Black,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub enum PieceType {
     Man,
     King,
@@ -20,19 +21,19 @@ pub struct Board {
     pub kings: u32,
 }
 
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
 pub struct Piece {
     pub p_color: Player,
     pub p_type: PieceType,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Capture {
     pub piece: Piece,
     pub pos: u8,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Move {
     pub from: u8,
     pub to: u8,
@@ -124,9 +125,9 @@ impl Board {
         }
     }
 
-    pub fn set_piece(&mut self, piece: Option<Piece>, pos: u8) -> Result<&mut Board, &str> {
+    pub fn set_piece(&mut self, piece: Option<Piece>, pos: u8) -> Result<&mut Board, GameError> {
         if pos > 31 {
-            return Err("piece index out of bounds");
+            return Err(GameError::PosOutOfBounds(pos));
         }
         match piece {
             None => {
@@ -161,7 +162,7 @@ impl Board {
         Ok(self)
     }
 
-    pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Board, String> {
+    pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Board, GameError> {
         // Clear the board
         *self = Board::new();
         let split_fen: Vec<&str> = fen.split(':').collect();
@@ -172,16 +173,16 @@ impl Board {
         Ok(self)
     }
 
-    pub fn set_piece_by_fen_field(&mut self, fen_field: &str) -> Result<(), String> {
+    fn set_piece_by_fen_field(&mut self, fen_field: &str) -> Result<&mut Board, GameError> {
         let col = match fen_field.chars().next().unwrap_or(' ') {
             'W' => Player::White,
             'B' => Player::Black,
-            _ => return Err("invalid start of string".to_string()),
+            _ => panic!("received an invalid fen"),
         };
         let fen_field = &fen_field[1..];
 
         if fen_field.is_empty() {
-            return Ok(());
+            return Ok(self);
         }
 
         for mut p in fen_field.split(',') {
@@ -200,12 +201,12 @@ impl Board {
             )?;
         }
 
-        Ok(())
+        Ok(self)
     }
 
     pub fn set_initial(&mut self) -> &mut Board {
         self.set_to_fen(INITIAL_BOARD_FEN)
-            .expect("INITIAL_BOARD_FEN is always valid; should never fail")
+            .expect("setting to initial FEN should never fail")
     }
 
     pub fn get_piece_at_pos(&self, pos: u8) -> Option<Piece> {
@@ -226,11 +227,13 @@ impl Board {
         }
     }
 
-    pub fn make_move(&mut self, m: &Move) -> Result<(), String> {
+    pub fn make_move(&mut self, m: &Move) -> Result<(), GameError> {
         if self.get_piece_at_pos(m.to).is_some() {
-            return Err("target square is occupied".to_string());
+            return Err(GameError::MoveTargetNotEmpty(m.to));
         }
-        let mut piece = self.get_piece_at_pos(m.from).unwrap();
+        let mut piece = self
+            .get_piece_at_pos(m.from)
+            .ok_or(GameError::MoveStartEmpty(m.from))?;
         if m.promote {
             piece.p_type = PieceType::King;
         }
@@ -244,9 +247,11 @@ impl Board {
         Ok(())
     }
 
-    pub fn unmake_move(&mut self, m: &Move) -> Result<(), String> {
-        if self.get_piece_at_pos(m.to).is_none() {
-            return Err("invalid move to unmake".to_string());
+    pub fn unmake_move(&mut self, m: &Move) -> Result<(), GameError> {
+        if self.get_piece_at_pos(m.to).is_none()
+            || (self.get_piece_at_pos(m.from).is_some() && m.from != m.to)
+        {
+            return Err(GameError::UnmakeMoveFailed(m.clone()));
         }
         let mut piece = self.get_piece_at_pos(m.to).unwrap();
         if m.promote {

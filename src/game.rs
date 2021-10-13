@@ -1,5 +1,6 @@
 use crate::board::*;
-use crate::utils;
+use crate::error::*;
+use crate::fen::*;
 use std::fmt;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -200,17 +201,23 @@ impl Game {
         pdn
     }
 
-    pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Game, String> {
-        let fen = utils::validate_fen(fen)?.to_ascii_uppercase();
+    pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Game, Error> {
+        let mut fen = FenProcessor::new(fen);
+        let fen = match fen.validate() {
+            Ok(f) => f,
+            Err(e) => return Err(Error::FenValidationError(e)),
+        };
 
         let split_fen = fen.split(':').collect::<Vec<_>>();
-        self.current_player = match split_fen[0].chars().next().unwrap_or('_') {
+        self.current_player = match split_fen[0].chars().next().unwrap() {
             'W' => Player::White,
             'B' => Player::Black,
             _ => panic!("FEN is validated already; should never fail"),
         };
 
-        self.board.set_to_fen(&fen[..])?;
+        if let Err(e) = self.board.set_to_fen(fen) {
+            return Err(Error::GameError(e));
+        }
 
         self.halfmove_clock = split_fen[3][1..].parse::<u32>().unwrap();
         self.fullmove_number = split_fen[4][1..].parse::<u32>().unwrap();
@@ -219,9 +226,9 @@ impl Game {
         Ok(self)
     }
 
-    pub fn get_rewound_state(&self, count: usize) -> Result<Game, String> {
+    pub fn get_rewound_state(&self, count: usize) -> Result<Game, GameError> {
         if count > self.prev_moves.len() {
-            return Err("invalid rewind length".to_string());
+            return Err(GameError::Unknown);
         }
 
         let mut rewound_game = self.clone();
@@ -234,10 +241,10 @@ impl Game {
         Ok(rewound_game)
     }
 
-    pub fn make_move(&mut self, movestr: &str) -> Result<&mut Game, String> {
-        if self.winner.is_some() {
-            return Err("cannot make moves if game is already over".to_string());
-        }
+    pub fn make_move(&mut self, movestr: &str) -> Result<&mut Game, GameError> {
+        // if self.winner.is_some() {
+        //     return Err("cannot make moves if game is already over".to_string());
+        // }
 
         let m = self.get_move_from_str(movestr)?;
         let prev_halfmove_clock = self.halfmove_clock;
@@ -265,7 +272,7 @@ impl Game {
         Ok(self)
     }
 
-    pub fn undo(&mut self) -> Result<&mut Game, String> {
+    pub fn undo(&mut self) -> Result<&mut Game, GameError> {
         if self.prev_moves.is_empty() {
             return Ok(self);
         }
@@ -288,20 +295,20 @@ impl Game {
         Ok(self)
     }
 
-    pub fn get_move_from_str(&mut self, movestr: &str) -> Result<Move, String> {
+    pub fn get_move_from_str(&mut self, movestr: &str) -> Result<Move, GameError> {
         let mut moves = self.board.get_moves_for(self.current_player);
         moves.retain(|x| x.match_string(movestr));
 
         if moves.is_empty() {
-            Err(format!(
-                "no move \"{}\" found for {:?}",
-                movestr, self.current_player
-            ))
+            Err(GameError::MoveNotFound {
+                mv: movestr.to_string(),
+                player: self.current_player,
+            })
         } else if moves.len() > 1 {
-            Err(format!(
-                "too many moves match move string (found {})",
-                moves.len()
-            ))
+            Err(GameError::MoveAmbiguous {
+                mv: movestr.to_string(),
+                count: moves.len(),
+            })
         } else {
             Ok(moves.pop().expect("moves.len() > 0; should never fail"))
         }
