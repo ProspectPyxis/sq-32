@@ -1,4 +1,4 @@
-use std::io::ErrorKind;
+use crate::error::Error;
 use std::iter::Peekable;
 use std::str::Chars;
 
@@ -14,7 +14,7 @@ impl Scanner<'_> {
         Scanner(line.chars().peekable())
     }
 
-    pub fn get_pair(&mut self) -> Result<HubPair, ErrorKind> {
+    pub fn get_pair(&mut self) -> Result<HubPair, Error> {
         let key = self.get_key()?;
 
         self.skip_whitespaces();
@@ -23,13 +23,13 @@ impl Scanner<'_> {
             self.0.next();
             self.get_val()?
         } else {
-            return Err(ErrorKind::InvalidData);
+            return Err(Error::BadDataError("no value found".to_string()));
         };
 
         Ok(HubPair { key, val })
     }
 
-    pub fn get_key(&mut self) -> Result<String, ErrorKind> {
+    pub fn get_key(&mut self) -> Result<String, Error> {
         self.skip_whitespaces();
 
         let mut key = String::new();
@@ -43,13 +43,13 @@ impl Scanner<'_> {
         }
 
         if key.is_empty() {
-            Err(ErrorKind::InvalidData)
+            Err(Error::BadDataError("no next key found".to_string()))
         } else {
             Ok(key)
         }
     }
 
-    pub fn get_val(&mut self) -> Result<String, ErrorKind> {
+    pub fn get_val(&mut self) -> Result<String, Error> {
         self.skip_whitespaces();
 
         let mut val = String::new();
@@ -62,7 +62,7 @@ impl Scanner<'_> {
                 }
                 match self.0.next() {
                     Some(c) => val.push(c),
-                    None => return Err(ErrorKind::InvalidData),
+                    None => return Err(Error::BadDataError("closing \" not found".to_string())),
                 }
             }
             self.0.next();
