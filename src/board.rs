@@ -520,10 +520,10 @@ fn get_piece_char(piece: Option<Piece>) -> char {
     match piece {
         None => ' ',
         Some(p) => match p {
-            WHITE_MAN => 'M',
-            BLACK_MAN => 'm',
-            WHITE_KING => 'K',
-            BLACK_KING => 'k',
+            WHITE_MAN => 'w',
+            BLACK_MAN => 'b',
+            WHITE_KING => 'W',
+            BLACK_KING => 'B',
         },
     }
 }
