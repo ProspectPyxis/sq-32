@@ -11,4 +11,6 @@ pub enum Error {
     BadDataError(String),
     #[error("{0:?}")]
     ParseIntError(#[from] num::ParseIntError),
+    #[error("unknown error")]
+    Unknown,
 }

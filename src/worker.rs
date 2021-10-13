@@ -1,10 +1,10 @@
+use crate::error::Error;
 use crate::game::*;
 use crate::hub::*;
-use std::io::ErrorKind;
 
 pub struct Worker {
     game: Game,
-    pub on_message: fn(&str),
+    binds: Vec<fn(&str)>,
 }
 
 impl Default for Worker {
@@ -17,13 +17,27 @@ impl Worker {
     pub fn new() -> Worker {
         Worker {
             game: Game::new(),
-            on_message: |response| println!("{}", response),
+            binds: vec![|response| println!("{}", response)],
         }
     }
 
-    pub fn send(&mut self, cmd: &str) -> Result<(), ErrorKind> {
+    fn on_message(&self, response: &str) {
+        for func in self.binds.iter() {
+            func(response);
+        }
+    }
+
+    pub fn add_bind(&mut self, bind: fn(&str)) {
+        self.binds.push(bind);
+    }
+
+    pub fn clear_binds(&mut self) {
+        self.binds = Vec::new();
+    }
+
+    pub fn send(&mut self, cmd: &str) -> Result<(), Error> {
         if cmd.trim().is_empty() {
-            return Err(ErrorKind::InvalidInput);
+            return Err(Error::EmptyInputError);
         }
 
         let mut scanner = Scanner::new(cmd);
@@ -31,8 +45,8 @@ impl Worker {
 
         match command.as_str() {
             "hub" => {
-                (self.on_message)("id name=sq-32 version=0.3.0");
-                (self.on_message)("wait");
+                self.on_message("id name=sq-32 version=0.3.0");
+                self.on_message("wait");
             }
             "pos" => {
                 while !scanner.is_done() {
@@ -43,14 +57,25 @@ impl Worker {
                         }
                         "fen" => {
                             if self.game.set_to_fen(p.val.as_str()).is_err() {
-                                return Err(ErrorKind::InvalidInput); // TODO: Refactor this error handling
+                                return Err(Error::InvalidInputError("invalid fen".to_string()));
+                                // TODO: Refactor this error handling
                             }
                         }
-                        _ => return Err(ErrorKind::InvalidInput),
+                        _ => {
+                            return Err(Error::InvalidInputError(format!(
+                                "invalid argument {}",
+                                p.key
+                            )));
+                        }
                     }
                 }
             }
-            _ => (),
+            _ => {
+                return Err(Error::InvalidInputError(format!(
+                    "invalid command {}",
+                    command
+                )));
+            }
         }
 
         Ok(())
