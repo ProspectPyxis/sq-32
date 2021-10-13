@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- New `Error` enum to handle all program errors
+
+### Changed
+- Program now uses a superset of the Hub-2.1 protocol, changing from original syntax
+- Use new `Worker` struct instead of `Container`
+
+### Removed
+- Removed `Container` struct
+- Removed every old original syntax command, use Hub-2.1 commands instead
 
 ## [0.2.0] - 2021-10-12
 ### Added
@@ -18,10 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `rewind` function and command to get a board's previous state
 - `exit` command to safely exit the bot
 
-## Fixed
+### Fixed
 - Fixed a bug where pieces won't promote properly at the end of a capture chain
 
-## Changed
+### Changed
 - Major refactoring, fix most clippy style errors
 
 ## [0.1.0] - 2021-10-08
