@@ -2,6 +2,9 @@ use crate::error::Error;
 use crate::game::*;
 use crate::hub::*;
 
+const NAME: &str = env!("CARGO_PKG_NAME");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 pub struct Worker {
     game: Game,
     binds: Vec<fn(&str)>,
@@ -17,7 +20,7 @@ impl Worker {
     pub fn new() -> Worker {
         Worker {
             game: Game::new(),
-            binds: vec![|response| println!("{}", response)],
+            binds: Vec::new(),
         }
     }
 
@@ -25,6 +28,11 @@ impl Worker {
         for func in self.binds.iter() {
             func(response);
         }
+    }
+
+    pub fn default_bind(&mut self) {
+        self.clear_binds();
+        self.add_bind(|response| println!("{}", response));
     }
 
     pub fn add_bind(&mut self, bind: fn(&str)) {
@@ -45,7 +53,7 @@ impl Worker {
 
         match command.as_str() {
             "hub" => {
-                self.on_message("id name=sq-32 version=0.3.0");
+                self.on_message(format!("id name={} version={}", NAME, VERSION).as_str());
                 self.on_message("wait");
             }
             "pos" => {
