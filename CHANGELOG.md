@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Program now uses a superset of the Hub-2.1 protocol, changing from original syntax
 - Use new `Worker` struct instead of `Container`
+- `validate\_fen()` removed, replaced with functionally equivalent `FenProcessor` struct
 
 ### Removed
 - Removed `Container` struct
