@@ -4,10 +4,17 @@ use std::str::Chars;
 
 pub struct HubPair {
     pub key: String,
-    pub val: String,
+    pub val: Option<String>,
 }
 
 pub struct Scanner<'a>(Peekable<Chars<'a>>);
+
+impl HubPair {
+    pub fn unwrap_val(self) -> Result<String, Error> {
+        self.val
+            .ok_or(Error::BadDataError("no value found".to_string()))
+    }
+}
 
 impl Scanner<'_> {
     pub fn new(line: &str) -> Scanner {
@@ -21,9 +28,9 @@ impl Scanner<'_> {
 
         let val = if let Some('=') = self.0.peek() {
             self.0.next();
-            self.get_val()?
+            Some(self.get_val()?)
         } else {
-            return Err(Error::BadDataError("no value found".to_string()));
+            None
         };
 
         Ok(HubPair { key, val })
@@ -35,7 +42,7 @@ impl Scanner<'_> {
         let mut key = String::new();
 
         for c in &mut self.0 {
-            if Self::is_divider(c) {
+            if is_divider(c) {
                 break;
             } else {
                 key.push(c);
@@ -83,11 +90,11 @@ impl Scanner<'_> {
         }
     }
 
-    pub fn is_divider(c: char) -> bool {
-        c.is_whitespace() || c == '=' || c == '"'
-    }
-
     pub fn is_done(&mut self) -> bool {
         self.0.peek().is_none()
     }
+}
+
+fn is_divider(c: char) -> bool {
+    c.is_whitespace() || c == '=' || c == '"'
 }
