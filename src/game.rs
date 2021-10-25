@@ -29,7 +29,6 @@ pub struct Game {
     pub current_player: Player,
     pub halfmove_clock: u32,
     pub fullmove_number: u32,
-    pub prev_moves: Vec<MoveWithHalfmove>,
     pub start_fen: String,
     pub winner: Option<Winner>,
 }
@@ -67,7 +66,6 @@ impl Game {
             current_player: Player::White,
             halfmove_clock: 0,
             fullmove_number: 1,
-            prev_moves: Vec::new(),
             start_fen: String::new(),
             winner: None,
         }
@@ -78,7 +76,6 @@ impl Game {
         self.current_player = Player::White;
         self.halfmove_clock = 0;
         self.fullmove_number = 1;
-        self.prev_moves = Vec::new();
         self.start_fen = INITIAL_BOARD_FEN.to_string();
         self.winner = None;
 
@@ -142,65 +139,6 @@ impl Game {
         fen
     }
 
-    pub fn get_partial_pdn(&self) -> String {
-        let mut pdn = String::new();
-        if self.start_fen.is_empty() && self.prev_moves.is_empty() {
-            return pdn;
-        }
-
-        pdn.push_str(
-            format!(
-                "[Result \"{}\"]\n",
-                match self.winner {
-                    None => "*",
-                    Some(winner) => match winner {
-                        Winner::White => "1-0",
-                        Winner::Black => "0-1",
-                        Winner::Draw(_) => "1/2-1/2",
-                    },
-                }
-            )
-            .as_str(),
-        );
-        if self.start_fen.as_str() != INITIAL_BOARD_FEN {
-            pdn.push_str(format!("[FEN \"{}\"]\n", self.start_fen).as_str());
-        }
-        pdn.push('\n');
-
-        let mut history_iter = self.prev_moves.iter();
-        let mut full_move = 1;
-
-        if self.start_fen.starts_with('B') {
-            pdn.push_str(
-                format!("1... {} ", history_iter.next().unwrap().m.to_string(false)).as_str(),
-            );
-            full_move += 1;
-        }
-
-        let history_iter = history_iter.collect::<Vec<_>>();
-        let history_iter = history_iter.chunks(2);
-
-        for h in history_iter {
-            if h.len() == 2 {
-                pdn.push_str(
-                    format!(
-                        "{}. {} {} ",
-                        full_move,
-                        h[0].m.to_string(false),
-                        h[1].m.to_string(false)
-                    )
-                    .as_str(),
-                );
-                full_move += 1;
-            } else {
-                pdn.push_str(format!("{}. {} ", full_move, h[0].m.to_string(false)).as_str());
-            }
-        }
-        pdn.push('*');
-
-        pdn
-    }
-
     pub fn set_to_fen(&mut self, fen: &str) -> Result<&mut Game, Error> {
         let mut fen = FenProcessor::new(fen);
         let fen = match fen.validate() {
@@ -226,28 +164,12 @@ impl Game {
         Ok(self)
     }
 
-    pub fn get_rewound_state(&self, count: usize) -> Result<Game, GameError> {
-        if count > self.prev_moves.len() {
-            return Err(GameError::Unknown);
-        }
-
-        let mut rewound_game = self.clone();
-        let to_rewind = rewound_game.prev_moves.len() - count;
-
-        for _ in 0..to_rewind {
-            rewound_game.undo()?;
-        }
-
-        Ok(rewound_game)
-    }
-
     pub fn make_move(&mut self, movestr: &str) -> Result<&mut Game, GameError> {
         // if self.winner.is_some() {
         //     return Err("cannot make moves if game is already over".to_string());
         // }
 
         let m = self.get_move_from_str(movestr)?;
-        let prev_halfmove_clock = self.halfmove_clock;
 
         if m.captures.is_empty()
             && self.board.get_piece_at_pos(m.from).unwrap().p_type == PieceType::King
@@ -264,33 +186,8 @@ impl Game {
                 Player::White
             }
         };
-        self.prev_moves
-            .push(MoveWithHalfmove::new(m, prev_halfmove_clock));
 
         self.winner = self.check_winner();
-
-        Ok(self)
-    }
-
-    pub fn undo(&mut self) -> Result<&mut Game, GameError> {
-        if self.prev_moves.is_empty() {
-            return Ok(self);
-        }
-
-        let to_undo = self
-            .prev_moves
-            .pop()
-            .expect("self.prev_moves.len() > 0; should never fail");
-        self.board.unmake_move(&to_undo.m)?;
-        self.halfmove_clock = to_undo.halfmove;
-        self.current_player = match self.current_player {
-            Player::Black => Player::White,
-            Player::White => {
-                self.fullmove_number -= 1;
-                Player::Black
-            }
-        };
-        self.winner = None;
 
         Ok(self)
     }
