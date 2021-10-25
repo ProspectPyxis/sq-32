@@ -11,3 +11,4 @@ license = "GPL-3.0-or-later"
 [dependencies]
 alea = "0.2.2"
 thiserror = "1.0.30"
+futures = "0.3.17"
