@@ -9,7 +9,3 @@ license = "GPL-3.0-or-later"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-alea = "0.2.2"
-thiserror = "1.0.30"
-futures = "0.3.17"
-async-std = "1.10.0"
