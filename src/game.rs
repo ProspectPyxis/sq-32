@@ -1,4 +1,4 @@
-use crate::error::MoveError;
+use crate::error::{InputError, MoveError};
 
 pub struct GameData {
     pub id: &'static str,
@@ -16,15 +16,23 @@ impl GameData {
     }
 }
 
-pub trait Bitboard {
+pub trait Game: Sized {
+    type B: Bitboard;
     type M: Move;
+    type P;
 
-    fn make_move(&mut self, mv: Self::M) -> Result<Self, MoveError<Self::M>>
-    where
-        Self: Sized;
+    fn game_data() -> GameData;
+
+    fn make_move(&mut self, mv: Self::M) -> Result<Self, MoveError<Self::M>>;
+
+    fn pos(&mut self, pos: &str) -> Result<Self, InputError>;
 }
 
-pub trait Move {
+pub trait Bitboard: Game {
+    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8);
+}
+
+pub trait Move: Game {
     fn match_string(&self, movestr: &str) -> bool;
 
     fn to_string(&self) -> &str;
