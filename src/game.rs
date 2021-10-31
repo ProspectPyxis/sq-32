@@ -1,18 +1,20 @@
 use crate::error::{InputError, MoveError};
 
-pub enum Color {
-    White,
-    Black,
-}
+pub mod PieceDefault {
+    pub enum Color {
+        White,
+        Black,
+    }
 
-pub enum Rank {
-    Man,
-    King,
-}
+    pub enum Rank {
+        Man,
+        King,
+    }
 
-pub struct PieceStandard {
-    pub color: Color,
-    pub rank: Rank,
+    pub struct Piece {
+        pub color: Color,
+        pub rank: Rank,
+    }
 }
 
 pub struct GameData {
