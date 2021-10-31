@@ -1,5 +1,20 @@
 use crate::error::{InputError, MoveError};
 
+pub enum Color {
+    White,
+    Black,
+}
+
+pub enum Rank {
+    Man,
+    King,
+}
+
+pub struct PieceStandard {
+    pub color: Color,
+    pub rank: Rank,
+}
+
 pub struct GameData {
     pub id: &'static str,
     pub board_rows: u8,
