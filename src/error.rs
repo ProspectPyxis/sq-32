@@ -9,16 +9,18 @@ pub enum InputError {
     UnexpectedCharMultiple { expected: Vec<char>, found: char },
     #[error("unexpected character (expected {expected:?}, found {found:?})")]
     UnexpectedCharSingle { expected: char, found: char },
+    #[error("invalid input length (expected {expected}, got {len})")]
+    InputLengthInvalid { expected: usize, len: usize },
 }
 
 #[derive(Error, Debug)]
 pub enum MoveError<M: Move> {
-    #[error("cannot make move ({}) on current position", .0.to_string())]
+    #[error("cannot make move ({}) on current position", .0.to_string(true))]
     MakeMoveFailed(M),
 }
 
-impl InputError {
-    pub fn to_io_error(self) -> io::Error {
-        io::Error::new(ErrorKind::InvalidInput, self)
+impl From<InputError> for io::Error {
+    fn from(s: InputError) -> Self {
+        io::Error::new(ErrorKind::InvalidInput, s)
     }
 }

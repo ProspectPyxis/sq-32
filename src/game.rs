@@ -1,6 +1,7 @@
-use crate::error::{InputError, MoveError};
+use crate::error::MoveError;
+use std::str::FromStr;
 
-pub mod PieceDefault {
+pub mod default_piece {
     pub enum Color {
         White,
         Black,
@@ -34,25 +35,25 @@ impl GameData {
 }
 
 pub trait Game: Sized {
-    type B: Bitboard;
     type M: Move;
     type P;
 
-    fn game_data() -> GameData;
-
-    fn make_move(&mut self, mv: Self::M) -> Result<Self, MoveError<Self::M>>;
-
-    fn pos(&mut self, pos: &str) -> Result<Self, InputError>;
+    fn make_move(&mut self, mv: Self::M) -> Result<&Self, MoveError<Self::M>>;
 }
 
-pub trait Bitboard: Game {
+pub trait Bitboard: FromStr {
+    type M: Move;
+    type P;
+
     fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8);
 
     fn get_piece_at(&self, pos: u8) -> Option<Self::P>;
 }
 
-pub trait Move: Game {
-    fn match_string(&self, movestr: &str) -> bool;
+pub trait Move {
+    fn match_string(&self, movestr: &str) -> bool {
+        movestr == self.to_string(true).as_str()
+    }
 
-    fn to_string(&self) -> &str;
+    fn to_string(&self, longform: bool) -> String;
 }
