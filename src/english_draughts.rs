@@ -1,5 +1,6 @@
 use crate::bit;
 use crate::error::InputError;
+use crate::game::default_piece::*;
 use crate::game::{Bitboard, Game, GameData, Move};
 use std::io;
 use std::str::FromStr;
@@ -73,6 +74,55 @@ impl FromStr for BBEnglishDraughts {
         }
 
         Ok(bb)
+    }
+}
+
+impl Bitboard for BBEnglishDraughts {
+    type P = Piece;
+
+    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8) {
+        self.black &= !(1 << pos);
+        self.white &= !(1 << pos);
+        self.men &= !(1 << pos);
+        self.kings &= !(1 << pos);
+
+        if let Some(p) = piece {
+            match p.color {
+                Color::Black => self.black |= 1 << pos,
+                Color::White => self.white |= 1 << pos,
+            }
+            match p.rank {
+                Rank::Man => self.men |= 1 << pos,
+                Rank::King => self.kings |= 1 << pos,
+            }
+        }
+    }
+
+    fn get_piece_at(&self, pos: u8) -> Option<Self::P> {
+        self.validate();
+
+        if !bit::is_bit_on(self.white | self.black, pos) {
+            None
+        } else {
+            Some(Piece {
+                color: if bit::is_bit_on(self.white, pos) {
+                    Color::White
+                } else {
+                    Color::Black
+                },
+                rank: if bit::is_bit_on(self.men, pos) {
+                    Rank::Man
+                } else {
+                    Rank::King
+                },
+            })
+        }
+    }
+
+    fn validate(&self) {
+        assert_eq!(self.black & self.white, 0);
+        assert_eq!(self.men & self.kings, 0);
+        assert_eq!((self.black | self.white) ^ (self.men | self.kings), 0);
     }
 }
 

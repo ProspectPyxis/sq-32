@@ -63,6 +63,8 @@ pub trait Bitboard: FromStr {
     fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8);
 
     fn get_piece_at(&self, pos: u8) -> Option<Self::P>;
+
+    fn validate(&self);
 }
 
 pub trait Move {
