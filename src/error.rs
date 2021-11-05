@@ -19,6 +19,12 @@ pub enum MoveError<M: Move> {
     MakeMoveFailed(M),
 }
 
+#[derive(Error, Debug)]
+pub enum BitError {
+    #[error("unexpected zero value")]
+    UnexpectedZero,
+}
+
 impl From<InputError> for io::Error {
     fn from(s: InputError) -> Self {
         io::Error::new(ErrorKind::InvalidInput, s)
