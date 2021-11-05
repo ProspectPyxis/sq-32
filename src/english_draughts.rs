@@ -46,22 +46,10 @@ impl FromStr for BBEnglishDraughts {
 
         for (i, c) in s.chars().enumerate() {
             match c {
-                'w' => {
-                    bb.white |= 1 << i;
-                    bb.men |= 1 << i;
-                }
-                'W' => {
-                    bb.white |= 1 << i;
-                    bb.kings |= 1 << i;
-                }
-                'b' => {
-                    bb.black |= 1 << i;
-                    bb.men |= 1 << i;
-                }
-                'B' => {
-                    bb.black |= 1 << i;
-                    bb.kings |= 1 << i;
-                }
+                'w' => bb.set_piece_at(Some(WHITE_MAN), i as u8),
+                'W' => bb.set_piece_at(Some(WHITE_KING), i as u8),
+                'b' => bb.set_piece_at(Some(BLACK_MAN), i as u8),
+                'B' => bb.set_piece_at(Some(BLACK_KING), i as u8),
                 'e' => (),
                 _ => {
                     return Err(InputError::UnexpectedCharMultiple {
