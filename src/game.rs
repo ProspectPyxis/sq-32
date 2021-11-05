@@ -36,13 +36,11 @@ impl GameData {
 
 pub trait Game: Sized {
     type M: Move;
-    type P;
 
     fn make_move(&mut self, mv: Self::M) -> Result<&Self, MoveError<Self::M>>;
 }
 
 pub trait Bitboard: FromStr {
-    type M: Move;
     type P;
 
     fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8);
