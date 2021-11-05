@@ -1,6 +1,3 @@
-use crate::game::Move;
-use std::io;
-use std::io::ErrorKind;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,9 +11,9 @@ pub enum InputError {
 }
 
 #[derive(Error, Debug)]
-pub enum MoveError<M: Move> {
-    #[error("cannot make move ({}) on current position", .0.to_string(true))]
-    MakeMoveFailed(M),
+pub enum BoardError {
+    #[error("pos out of bounds (expected maximum of {max}, found {found})")]
+    PosOutOfBounds { max: u8, found: u8 },
 }
 
 #[derive(Error, Debug)]
@@ -25,8 +22,10 @@ pub enum BitError {
     UnexpectedZero,
 }
 
-impl From<InputError> for io::Error {
-    fn from(s: InputError) -> Self {
-        io::Error::new(ErrorKind::InvalidInput, s)
-    }
+#[derive(Error, Debug)]
+pub enum Sq32Error {
+    #[error("input error: {0}")]
+    InputError(#[from] InputError),
+    #[error("board error: {0}")]
+    BoardError(#[from] BoardError),
 }

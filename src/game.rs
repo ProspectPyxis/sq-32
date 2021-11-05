@@ -1,4 +1,4 @@
-use crate::error::MoveError;
+use crate::error::BoardError;
 use std::str::FromStr;
 
 pub mod default_piece {
@@ -54,13 +54,13 @@ impl GameData {
 pub trait Game: Sized {
     type M: Move;
 
-    fn make_move(&mut self, mv: Self::M) -> Result<&Self, MoveError<Self::M>>;
+    fn make_move(&mut self, mv: Self::M) -> Result<&Self, BoardError>;
 }
 
 pub trait Bitboard: FromStr {
     type P;
 
-    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8);
+    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8) -> Result<&Self, BoardError>;
 
     fn get_piece_at(&self, pos: u8) -> Option<Self::P>;
 
