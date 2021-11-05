@@ -1,5 +1,8 @@
 use crate::bit;
+use crate::error::InputError;
 use crate::game::{Bitboard, Game, GameData, Move};
+use std::io;
+use std::str::FromStr;
 
 const ENGLISH_DRAUGHTS_DATA: GameData = GameData {
     id: "english",
@@ -11,6 +14,7 @@ pub struct GameEnglishDraughts {
     pub board: BBEnglishDraughts,
 }
 
+#[derive(Default)]
 pub struct BBEnglishDraughts {
     black: u32,
     white: u32,
@@ -23,6 +27,53 @@ pub struct MoveEnglishDraughts {
     to: u32,
     captures: u32,
     in_between: u32,
+}
+
+impl FromStr for BBEnglishDraughts {
+    type Err = io::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() != ENGLISH_DRAUGHTS_DATA.valid_squares_count() as usize {
+            return Err(InputError::InputLengthInvalid {
+                expected: ENGLISH_DRAUGHTS_DATA.valid_squares_count() as usize,
+                len: s.len(),
+            }
+            .into());
+        }
+
+        let mut bb = Self::default();
+
+        for (i, c) in s.chars().enumerate() {
+            match c {
+                'w' => {
+                    bb.white |= 1 << i;
+                    bb.men |= 1 << i;
+                }
+                'W' => {
+                    bb.white |= 1 << i;
+                    bb.kings |= 1 << i;
+                }
+                'b' => {
+                    bb.black |= 1 << i;
+                    bb.men |= 1 << i;
+                }
+                'B' => {
+                    bb.black |= 1 << i;
+                    bb.kings |= 1 << i;
+                }
+                'e' => (),
+                _ => {
+                    return Err(InputError::UnexpectedCharMultiple {
+                        expected: vec!['w', 'W', 'b', 'B', 'e'],
+                        found: c,
+                    }
+                    .into())
+                }
+            }
+        }
+
+        Ok(bb)
+    }
 }
 
 impl Move for MoveEnglishDraughts {
