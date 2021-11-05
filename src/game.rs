@@ -2,6 +2,23 @@ use crate::error::MoveError;
 use std::str::FromStr;
 
 pub mod default_piece {
+    const WHITE_MAN: Piece = Piece {
+        color: Color::White,
+        rank: Rank::Man,
+    };
+    const WHITE_KING: Piece = Piece {
+        color: Color::White,
+        rank: Rank::King,
+    };
+    const BLACK_MAN: Piece = Piece {
+        color: Color::Black,
+        rank: Rank::Man,
+    };
+    const BLACK_KING: Piece = Piece {
+        color: Color::Black,
+        rank: Rank::King,
+    };
+
     pub enum Color {
         White,
         Black,
