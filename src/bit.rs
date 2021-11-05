@@ -18,3 +18,7 @@ pub fn get_all_on_bits<T: Into<u64> + Copy>(b: T) -> Vec<usize> {
 
     ons
 }
+
+pub fn is_bit_on<T: Into<u64>>(b: T, pos: u8) -> bool {
+    b.into() & (1 << pos) != 0
+}
