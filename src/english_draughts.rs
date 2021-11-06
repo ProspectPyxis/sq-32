@@ -11,7 +11,8 @@ const ENGLISH_DRAUGHTS_DATA: GameData = GameData {
 };
 
 pub struct GameEnglishDraughts {
-    pub board: BBEnglishDraughts,
+    board: BBEnglishDraughts,
+    active_player: Color,
 }
 
 #[derive(Default)]
@@ -31,16 +32,66 @@ pub struct MoveEnglishDraughts {
 
 impl Game for GameEnglishDraughts {
     type M = MoveEnglishDraughts;
+    // UndoData is a u32 representation of captured kings
+    type UndoData = u32;
 
     fn make_move(&mut self, mv: Self::M) -> Result<&Self, BoardError> {
-        self.board
-            .set_piece_at(self.board.get_piece_at(mv.from), mv.to)?;
-        self.board.set_piece_at(None, mv.from)?;
+        let start_piece = self.board.get_piece_at(mv.from);
+        if start_piece.is_none() {
+            return Err(BoardError::UnexpectedEmpty(mv.from));
+        }
+        if self.board.get_piece_at(mv.to).is_some() {
+            return Err(BoardError::UnexpectedNonEmpty(mv.to));
+        }
         if mv.captures != 0 {
-            for i in bit::get_all_on_bits(mv.captures) {
+            if (self.board.white | self.board.black) & mv.captures != mv.captures {
+                return Err(BoardError::UnexpectedEmpty(
+                    bit::first_on_pos((self.board.white | self.board.black) & !(mv.captures))
+                        .unwrap(),
+                ));
+            }
+            for i in bit::all_on_bits(mv.captures) {
                 self.board.set_piece_at(None, i as u8)?;
             }
         }
+
+        self.board.set_piece_at(start_piece, mv.to)?;
+        self.board.set_piece_at(None, mv.from)?;
+
+        self.active_player = self.active_player.opposite();
+
+        Ok(self)
+    }
+
+    fn unmake_move(&mut self, mv: Self::M, undo: Self::UndoData) -> Result<&Self, BoardError> {
+        let end_piece = self.board.get_piece_at(mv.to);
+        if end_piece.is_none() {
+            return Err(BoardError::UnexpectedEmpty(mv.to));
+        }
+        if self.board.get_piece_at(mv.to).is_some() {
+            return Err(BoardError::UnexpectedNonEmpty(mv.from));
+        }
+
+        self.board.set_piece_at(end_piece, mv.from)?;
+        self.board.set_piece_at(None, mv.to)?;
+
+        if mv.captures != 0 {
+            for i in bit::all_on_bits(mv.captures) {
+                self.board.set_piece_at(
+                    Some(Piece {
+                        color: self.active_player,
+                        rank: if bit::is_pos_on(undo, i) {
+                            Rank::King
+                        } else {
+                            Rank::Man
+                        },
+                    }),
+                    i,
+                )?;
+            }
+        }
+
+        self.active_player = self.active_player.opposite();
 
         Ok(self)
     }
@@ -120,18 +171,18 @@ impl Bitboard for BBEnglishDraughts {
     }
 
     fn get_piece_at(&self, pos: u8) -> Option<Self::P> {
-        self.validate();
+        assert!(self.is_valid());
 
-        if !bit::is_bit_on(self.white | self.black, pos) {
+        if !bit::is_pos_on(self.white | self.black, pos) {
             None
         } else {
             Some(Piece {
-                color: if bit::is_bit_on(self.white, pos) {
+                color: if bit::is_pos_on(self.white, pos) {
                     Color::White
                 } else {
                     Color::Black
                 },
-                rank: if bit::is_bit_on(self.men, pos) {
+                rank: if bit::is_pos_on(self.men, pos) {
                     Rank::Man
                 } else {
                     Rank::King
@@ -140,10 +191,10 @@ impl Bitboard for BBEnglishDraughts {
         }
     }
 
-    fn validate(&self) {
-        assert_eq!(self.black & self.white, 0);
-        assert_eq!(self.men & self.kings, 0);
-        assert_eq!((self.black | self.white) ^ (self.men | self.kings), 0);
+    fn is_valid(&self) -> bool {
+        self.black & self.white == 0
+            && self.men & self.kings == 0
+            && (self.black | self.white) ^ (self.men | self.kings) == 0
     }
 }
 
@@ -154,7 +205,7 @@ impl Move for MoveEnglishDraughts {
         if self.captures == 0 {
             movestr.push('-');
         } else {
-            let in_betweens = bit::get_all_on_bits(self.in_between);
+            let in_betweens = bit::all_on_bits(self.in_between);
             if !in_betweens.is_empty() {
                 for i in in_betweens {
                     movestr.push('x');
@@ -163,7 +214,6 @@ impl Move for MoveEnglishDraughts {
             }
             movestr.push('x');
         }
-
         movestr.push_str(self.to.to_string().as_str());
 
         movestr

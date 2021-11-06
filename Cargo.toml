@@ -10,3 +10,4 @@ license = "GPL-3.0-or-later"
 
 [dependencies]
 thiserror = "1.0.30"
+num-traits = "0.2.14"

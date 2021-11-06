@@ -19,6 +19,7 @@ pub mod default_piece {
         rank: Rank::King,
     };
 
+    #[derive(PartialEq, Eq, Copy, Clone)]
     pub enum Color {
         White,
         Black,
@@ -32,6 +33,16 @@ pub mod default_piece {
     pub struct Piece {
         pub color: Color,
         pub rank: Rank,
+    }
+
+    impl Color {
+        pub fn opposite(self) -> Color {
+            if self == Color::White {
+                Color::Black
+            } else {
+                Color::White
+            }
+        }
     }
 }
 
@@ -53,8 +64,11 @@ impl GameData {
 
 pub trait Game: Sized {
     type M: Move;
+    type UndoData;
 
     fn make_move(&mut self, mv: Self::M) -> Result<&Self, BoardError>;
+
+    fn unmake_move(&mut self, mv: Self::M, undo: Self::UndoData) -> Result<&Self, BoardError>;
 }
 
 pub trait Bitboard: FromStr {
@@ -64,7 +78,7 @@ pub trait Bitboard: FromStr {
 
     fn get_piece_at(&self, pos: u8) -> Option<Self::P>;
 
-    fn validate(&self);
+    fn is_valid(&self) -> bool;
 }
 
 pub trait Move {
