@@ -21,6 +21,16 @@ pub enum BoardError {
 }
 
 #[derive(Error, Debug)]
+pub enum HubError {
+    #[error("value is none")]
+    NoValue,
+    #[error("expected next token")]
+    NoNextToken,
+    #[error("unclosed quote mark")]
+    UnclosedQuote,
+}
+
+#[derive(Error, Debug)]
 pub enum Sq32Error {
     #[error("input error: {0}")]
     InputError(#[from] InputError),
