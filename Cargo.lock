@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
+name = "dotbits"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7432ed96939e801a14d57ed564ca2acd0b9312bc48aff87240d4df9dd0eadaf"
+
+[[package]]
 name = "num-traits"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -39,6 +45,7 @@ dependencies = [
 name = "sq-32"
 version = "0.2.0"
 dependencies = [
+ "dotbits",
  "num-traits",
  "thiserror",
 ]

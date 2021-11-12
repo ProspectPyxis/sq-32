@@ -21,15 +21,11 @@ pub enum BoardError {
 }
 
 #[derive(Error, Debug)]
-pub enum BitError {
-    #[error("unexpected zero value")]
-    UnexpectedZero,
-}
-
-#[derive(Error, Debug)]
 pub enum Sq32Error {
     #[error("input error: {0}")]
     InputError(#[from] InputError),
     #[error("board error: {0}")]
     BoardError(#[from] BoardError),
+    #[error("bit error: {0}")]
+    BitError(#[from] dotbits::Error),
 }

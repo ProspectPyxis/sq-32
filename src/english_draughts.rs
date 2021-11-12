@@ -1,7 +1,7 @@
-use crate::bit;
 use crate::error::{BoardError, InputError, Sq32Error};
 use crate::game::default_piece::*;
 use crate::game::{Bitboard, Game, GameData, Move};
+use dotbits::{BitManip, BitVec};
 use std::str::FromStr;
 
 const ENGLISH_DRAUGHTS_DATA: GameData = GameData {
@@ -46,11 +46,14 @@ impl Game for GameEnglishDraughts {
         if mv.captures != 0 {
             if (self.board.white | self.board.black) & mv.captures != mv.captures {
                 return Err(BoardError::UnexpectedEmpty(
-                    bit::first_on_pos((self.board.white | self.board.black) & !(mv.captures))
-                        .unwrap(),
+                    *((self.board.white | self.board.black) & !(mv.captures))
+                        .bits()
+                        .ones()
+                        .first()
+                        .unwrap() as u8,
                 ));
             }
-            for i in bit::all_on_bits(mv.captures) {
+            for i in mv.captures.bits().ones() {
                 self.board.set_piece_at(None, i as u8)?;
             }
         }
@@ -76,17 +79,17 @@ impl Game for GameEnglishDraughts {
         self.board.set_piece_at(None, mv.to)?;
 
         if mv.captures != 0 {
-            for i in bit::all_on_bits(mv.captures) {
+            for i in mv.captures.bits().ones() {
                 self.board.set_piece_at(
                     Some(Piece {
                         color: self.active_player,
-                        rank: if bit::is_pos_on(undo, i) {
+                        rank: if undo.bit_get(i).unwrap() {
                             Rank::King
                         } else {
                             Rank::Man
                         },
                     }),
-                    i,
+                    i as u8,
                 )?;
             }
         }
@@ -172,17 +175,18 @@ impl Bitboard for BBEnglishDraughts {
 
     fn get_piece_at(&self, pos: u8) -> Option<Self::P> {
         assert!(self.is_valid());
+        let pos = pos as usize;
 
-        if !bit::is_pos_on(self.white | self.black, pos) {
+        if !(self.white | self.black).bit_get(pos).unwrap() {
             None
         } else {
             Some(Piece {
-                color: if bit::is_pos_on(self.white, pos) {
+                color: if self.white.bit_get(pos).unwrap() {
                     Color::White
                 } else {
                     Color::Black
                 },
-                rank: if bit::is_pos_on(self.men, pos) {
+                rank: if self.men.bit_get(pos).unwrap() {
                     Rank::Man
                 } else {
                     Rank::King
@@ -205,7 +209,7 @@ impl Move for MoveEnglishDraughts {
         if self.captures == 0 {
             movestr.push('-');
         } else {
-            let in_betweens = bit::all_on_bits(self.in_between);
+            let in_betweens = self.in_between.bits().ones();
             if !in_betweens.is_empty() {
                 for i in in_betweens {
                     movestr.push('x');
