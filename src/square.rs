@@ -1,5 +1,6 @@
 use crate::game::GameData;
 
+#[derive(PartialEq, Eq)]
 pub enum Direction {
     NorthWest,
     NorthEast,
@@ -31,7 +32,7 @@ impl Direction {
         ]
     }
 
-    pub fn ordinals() -> Vec<Direction> {
+    pub fn cardinals() -> Vec<Direction> {
         vec![
             Direction::North,
             Direction::East,
