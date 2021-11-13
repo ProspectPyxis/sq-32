@@ -1,6 +1,7 @@
 use crate::error::{BoardError, InputError, Sq32Error};
 use crate::game::default_piece::*;
 use crate::game::{Bitboard, Game, GameData, Move};
+use crate::square::SquareCalc;
 use dotbits::{BitManip, BitVec};
 use std::str::FromStr;
 
@@ -9,6 +10,8 @@ const DATA_ENGLISH: GameData = GameData {
     board_rows: 8,
     board_columns: 8,
 };
+
+const SCALC: SquareCalc = SquareCalc::from_const(DATA_ENGLISH);
 
 pub struct GameEnglishDraughts {
     board: BBEnglishDraughts,

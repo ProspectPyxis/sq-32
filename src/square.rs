@@ -13,6 +13,12 @@ impl From<GameData> for SquareCalc {
 }
 
 impl SquareCalc {
+    pub const fn from_const(dat: GameData) -> SquareCalc {
+        SquareCalc {
+            width: dat.board_columns,
+        }
+    }
+
     pub fn sparse(&self, x: u8) -> u8 {
         if self.width & 1 == 1 {
             x
