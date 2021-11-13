@@ -25,6 +25,7 @@ pub mod default_piece {
         Black,
     }
 
+    #[derive(PartialEq, Eq)]
     pub enum Rank {
         Man,
         King,
@@ -66,21 +67,35 @@ pub trait Game: Sized {
     type M: Move;
     type UndoData;
 
-    fn make_move(&mut self, mv: Self::M) -> Result<&Self, BoardError>;
+    fn make_move(&mut self, mv: &Self::M) -> Result<&Self, BoardError>;
 
-    fn unmake_move(&mut self, mv: Self::M, undo: Self::UndoData) -> Result<&Self, BoardError>;
+    fn unmake_move(&mut self, mv: &Self::M, undo: Self::UndoData) -> Result<&Self, BoardError>;
 
     fn gen_moves(&mut self) -> Vec<Self::M>;
 }
 
 pub trait GenMoves: Game {
+    fn valid_count() -> usize;
+
     fn moves_at(&self, pos: usize) -> Vec<Self::M>;
 
     fn captures_at(&mut self, pos: usize) -> Vec<Self::M>;
 
-    fn all_moves(&self) -> Vec<Self::M>;
+    fn all_moves(&self) -> Vec<Self::M> {
+        let mut moves: Vec<Self::M> = Vec::new();
+        for i in 0..Self::valid_count() {
+            moves.append(&mut self.moves_at(i));
+        }
+        moves
+    }
 
-    fn all_captures(&mut self) -> Vec<Self::M>;
+    fn all_captures(&mut self) -> Vec<Self::M> {
+        let mut caps: Vec<Self::M> = Vec::new();
+        for i in 0..Self::valid_count() {
+            caps.append(&mut self.captures_at(i));
+        }
+        caps
+    }
 }
 
 pub trait Bitboard: FromStr {

@@ -1,7 +1,7 @@
 use crate::error::{BoardError, InputError, Sq32Error};
 use crate::game::default_piece::*;
-use crate::game::{Bitboard, Game, GameData, Move};
-use crate::square::SquareCalc;
+use crate::game::{Bitboard, Game, GameData, GenMoves, Move};
+use crate::square::{Direction, SquareCalc};
 use dotbits::{BitManip, BitVec};
 use std::str::FromStr;
 
@@ -26,6 +26,7 @@ pub struct BBEnglishDraughts {
     kings: u32,
 }
 
+#[derive(Clone)]
 pub struct MoveEnglishDraughts {
     from: usize,
     to: usize,
@@ -38,7 +39,7 @@ impl Game for GameEnglishDraughts {
     // UndoData is a u32 representation of captured kings
     type UndoData = u32;
 
-    fn make_move(&mut self, mv: Self::M) -> Result<&Self, BoardError> {
+    fn make_move(&mut self, mv: &Self::M) -> Result<&Self, BoardError> {
         let start_piece = self.board.get_piece_at(mv.from);
         if start_piece.is_none() {
             return Err(BoardError::UnexpectedEmpty(mv.from));
@@ -69,7 +70,7 @@ impl Game for GameEnglishDraughts {
         Ok(self)
     }
 
-    fn unmake_move(&mut self, mv: Self::M, undo: Self::UndoData) -> Result<&Self, BoardError> {
+    fn unmake_move(&mut self, mv: &Self::M, undo: Self::UndoData) -> Result<&Self, BoardError> {
         let end_piece = self.board.get_piece_at(mv.to);
         if end_piece.is_none() {
             return Err(BoardError::UnexpectedEmpty(mv.to));
@@ -109,6 +110,121 @@ impl Game for GameEnglishDraughts {
             Color::White => self.board.white,
             Color::Black => self.board.black,
         };
+
+        moves
+    }
+}
+
+impl GenMoves for GameEnglishDraughts {
+    fn valid_count() -> usize {
+        DATA_ENGLISH.valid_squares_count()
+    }
+
+    fn moves_at(&self, pos: usize) -> Vec<Self::M> {
+        let piece = match self.board.get_piece_at(pos) {
+            Some(p) => p,
+            None => return vec![],
+        };
+
+        let dirs = if let Rank::King = piece.rank {
+            Direction::diagonals()
+        } else {
+            match piece.color {
+                Color::White => Direction::diagonals_north(),
+                Color::Black => Direction::diagonals_south(),
+            }
+        };
+
+        let mut moves: Vec<Self::M> = Vec::new();
+        for d in dirs {
+            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, &d, 1) {
+                n
+            } else {
+                continue;
+            };
+            if self.board.get_piece_at(target_pos).is_none() {
+                moves.push(MoveEnglishDraughts::new(pos, target_pos));
+            }
+        }
+
+        moves
+    }
+
+    fn captures_at(&mut self, pos: usize) -> Vec<Self::M> {
+        let piece = match self.board.get_piece_at(pos) {
+            Some(p) => p,
+            None => return vec![],
+        };
+
+        let dirs = if let Rank::King = piece.rank {
+            Direction::diagonals()
+        } else {
+            match piece.color {
+                Color::White => Direction::diagonals_north(),
+                Color::Black => Direction::diagonals_south(),
+            }
+        };
+        let crownhead = match piece.color {
+            Color::White => 0,
+            Color::Black => 7,
+        };
+
+        let mut moves: Vec<Self::M> = Vec::new();
+
+        for d in dirs {
+            let neighbor_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, &d, 1) {
+                n
+            } else {
+                continue;
+            };
+
+            if let Some(p) = self.board.get_piece_at(neighbor_pos) {
+                if piece.color == p.color {
+                    continue;
+                }
+            } else {
+                continue;
+            }
+
+            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, &d, 2) {
+                n
+            } else {
+                continue;
+            };
+            if self.board.get_piece_at(target_pos).is_none() {
+                continue;
+            }
+
+            let mut m = MoveEnglishDraughts::new(pos, target_pos);
+            m.set_capture(neighbor_pos);
+
+            if target_pos / (DATA_ENGLISH.board_columns / 2) == crownhead && piece.rank == Rank::Man
+            {
+                moves.push(m);
+                continue;
+            }
+
+            let undo_data = self.board.kings & (1 << neighbor_pos);
+
+            self.make_move(&m)
+                .expect("unexpected error when making move");
+            let submoves = self.captures_at(target_pos);
+            self.unmake_move(&m, undo_data)
+                .expect("unexpected error when unmaking move");
+
+            if submoves.is_empty() {
+                continue;
+            }
+            for mut submove in submoves {
+                let mut new_move = m.clone();
+                new_move.in_between.push(m.to);
+                new_move.in_between.append(&mut submove.in_between);
+                new_move.merge_captures(submove.captures);
+                new_move.to = submove.to;
+
+                moves.push(new_move);
+            }
+        }
 
         moves
     }
@@ -234,5 +350,24 @@ impl Move for MoveEnglishDraughts {
         movestr.push_str(self.to.to_string().as_str());
 
         movestr
+    }
+}
+
+impl MoveEnglishDraughts {
+    pub fn new(from: usize, to: usize) -> MoveEnglishDraughts {
+        MoveEnglishDraughts {
+            from,
+            to,
+            captures: 0,
+            in_between: vec![],
+        }
+    }
+
+    pub fn set_capture(&mut self, pos: usize) {
+        self.captures.bit_on(pos).expect("out of bounds");
+    }
+
+    pub fn merge_captures(&mut self, captures: u32) {
+        self.captures |= captures;
     }
 }

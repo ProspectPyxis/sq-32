@@ -112,7 +112,7 @@ impl SquareCalc {
 
     // This function assumes an already sparsed number
     // It breaks automatically should the number attempt to go out of bounds
-    pub fn add_dir(&self, x: usize, dir: Direction, count: usize) -> usize {
+    pub fn add_dir(&self, x: usize, dir: &Direction, count: usize) -> usize {
         if count == 0 {
             return x;
         }
@@ -141,7 +141,40 @@ impl SquareCalc {
         x as usize
     }
 
-    pub fn add_dir_dense(&self, x: usize, dir: Direction, count: usize) -> usize {
+    pub fn add_dir_dense(&self, x: usize, dir: &Direction, count: usize) -> usize {
         self.dense(self.add_dir(self.sparse(x), dir, count))
+    }
+
+    pub fn try_add_dir(&self, x: usize, dir: &Direction, count: usize) -> Option<usize> {
+        if count == 0 {
+            return Some(x);
+        }
+
+        let mut x = x as isize;
+        let half_width = (self.width >> 1) as isize;
+        let adder = match dir {
+            Direction::NorthWest => -half_width - 1,
+            Direction::NorthEast => -half_width,
+            Direction::SouthEast => half_width + 1,
+            Direction::SouthWest => half_width,
+            _ => todo!(),
+        };
+
+        for _ in 0..count {
+            let new_val = x.checked_add(adder);
+            if new_val.is_none()
+                || new_val.unwrap() < 0
+                || !self.is_bounded(new_val.unwrap() as usize)
+            {
+                return None;
+            }
+            x = new_val.unwrap();
+        }
+
+        Some(x as usize)
+    }
+
+    pub fn try_add_dir_dense(&self, x: usize, dir: &Direction, count: usize) -> Option<usize> {
+        Some(self.dense(self.try_add_dir(self.sparse(x), dir, count)?))
     }
 }
