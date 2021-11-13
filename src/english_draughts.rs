@@ -87,9 +87,10 @@ impl Game for GameEnglishDraughts {
                         .unwrap(),
                 ));
             }
-            for i in mv.captures.bits().ones() {
-                self.board.set_piece_at(None, i)?;
-            }
+            self.board.black &= !mv.captures;
+            self.board.white &= !mv.captures;
+            self.board.men &= !mv.captures;
+            self.board.kings &= !mv.captures;
         }
 
         let crownhead = match start_piece.color {
@@ -124,19 +125,13 @@ impl Game for GameEnglishDraughts {
         }
 
         if mv.captures != 0 {
-            for i in mv.captures.bits().ones() {
-                self.board.set_piece_at(
-                    Some(Piece {
-                        color: end_piece.color.opposite(),
-                        rank: if undo.bit_get(i).unwrap() {
-                            Rank::King
-                        } else {
-                            Rank::Man
-                        },
-                    }),
-                    i,
-                )?;
-            }
+            match end_piece.color {
+                Color::White => self.board.black |= mv.captures,
+                Color::Black => self.board.white |= mv.captures,
+            };
+            let captured_kings = mv.captures & undo;
+            self.board.kings |= captured_kings;
+            self.board.men |= mv.captures & !captured_kings;
         }
 
         self.board.set_piece_at(Some(end_piece), mv.from)?;
