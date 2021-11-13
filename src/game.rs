@@ -74,11 +74,11 @@ pub trait Game: Sized {
 }
 
 pub trait GenMoves: Game {
-    fn moves_at(&mut self, pos: u8) -> Vec<Self::M>;
+    fn moves_at(&self, pos: u8) -> Vec<Self::M>;
 
     fn captures_at(&mut self, pos: u8) -> Vec<Self::M>;
 
-    fn all_moves(&mut self) -> Vec<Self::M>;
+    fn all_moves(&self) -> Vec<Self::M>;
 
     fn all_captures(&mut self) -> Vec<Self::M>;
 }
