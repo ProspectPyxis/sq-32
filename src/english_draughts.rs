@@ -98,6 +98,17 @@ impl Game for GameEnglishDraughts {
 
         Ok(self)
     }
+
+    fn gen_moves(&mut self) -> Vec<Self::M> {
+        let mut moves: Vec<Self::M> = Vec::new();
+
+        let bitboard = match self.active_player {
+            Color::White => self.board.white,
+            Color::Black => self.board.black,
+        };
+
+        moves
+    }
 }
 
 impl FromStr for BBEnglishDraughts {
