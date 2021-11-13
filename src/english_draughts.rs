@@ -4,7 +4,7 @@ use crate::game::{Bitboard, Game, GameData, Move};
 use dotbits::{BitManip, BitVec};
 use std::str::FromStr;
 
-const ENGLISH_DRAUGHTS_DATA: GameData = GameData {
+const DATA_ENGLISH: GameData = GameData {
     id: "english",
     board_rows: 8,
     board_columns: 8,
@@ -27,7 +27,7 @@ pub struct MoveEnglishDraughts {
     from: u8,
     to: u8,
     captures: u32,
-    in_between: u32,
+    in_between: Vec<u8>,
 }
 
 impl Game for GameEnglishDraughts {
@@ -104,9 +104,9 @@ impl FromStr for BBEnglishDraughts {
     type Err = Sq32Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() != ENGLISH_DRAUGHTS_DATA.valid_squares_count() as usize {
+        if s.len() != DATA_ENGLISH.valid_squares_count() as usize {
             return Err(InputError::InputLengthInvalid {
-                expected: ENGLISH_DRAUGHTS_DATA.valid_squares_count() as usize,
+                expected: DATA_ENGLISH.valid_squares_count() as usize,
                 len: s.len(),
             }
             .into());
@@ -147,9 +147,9 @@ impl Bitboard for BBEnglishDraughts {
     type P = Piece;
 
     fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8) -> Result<&Self, BoardError> {
-        if pos > ENGLISH_DRAUGHTS_DATA.valid_squares_count() - 1 {
+        if pos > DATA_ENGLISH.valid_squares_count() - 1 {
             return Err(BoardError::PosOutOfBounds {
-                max: ENGLISH_DRAUGHTS_DATA.valid_squares_count() - 1,
+                max: DATA_ENGLISH.valid_squares_count() - 1,
                 found: pos,
             });
         }
@@ -209,9 +209,8 @@ impl Move for MoveEnglishDraughts {
         if self.captures == 0 {
             movestr.push('-');
         } else {
-            let in_betweens = self.in_between.bits().ones();
-            if !in_betweens.is_empty() {
-                for i in in_betweens {
+            if !self.in_between.is_empty() {
+                for i in &self.in_between {
                     movestr.push('x');
                     movestr.push_str((i + 1).to_string().as_str());
                 }
