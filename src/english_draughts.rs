@@ -27,10 +27,10 @@ pub struct BBEnglishDraughts {
 }
 
 pub struct MoveEnglishDraughts {
-    from: u8,
-    to: u8,
+    from: usize,
+    to: usize,
     captures: u32,
-    in_between: Vec<u8>,
+    in_between: Vec<usize>,
 }
 
 impl Game for GameEnglishDraughts {
@@ -53,11 +53,11 @@ impl Game for GameEnglishDraughts {
                         .bits()
                         .ones()
                         .first()
-                        .unwrap() as u8,
+                        .unwrap(),
                 ));
             }
             for i in mv.captures.bits().ones() {
-                self.board.set_piece_at(None, i as u8)?;
+                self.board.set_piece_at(None, i)?;
             }
         }
 
@@ -92,7 +92,7 @@ impl Game for GameEnglishDraughts {
                             Rank::Man
                         },
                     }),
-                    i as u8,
+                    i,
                 )?;
             }
         }
@@ -131,16 +131,16 @@ impl FromStr for BBEnglishDraughts {
         for (i, c) in s.chars().enumerate() {
             match c {
                 'w' => {
-                    bb.set_piece_at(Some(WHITE_MAN), i as u8)?;
+                    bb.set_piece_at(Some(WHITE_MAN), i)?;
                 }
                 'W' => {
-                    bb.set_piece_at(Some(WHITE_KING), i as u8)?;
+                    bb.set_piece_at(Some(WHITE_KING), i)?;
                 }
                 'b' => {
-                    bb.set_piece_at(Some(BLACK_MAN), i as u8)?;
+                    bb.set_piece_at(Some(BLACK_MAN), i)?;
                 }
                 'B' => {
-                    bb.set_piece_at(Some(BLACK_KING), i as u8)?;
+                    bb.set_piece_at(Some(BLACK_KING), i)?;
                 }
                 'e' => (),
                 _ => {
@@ -160,7 +160,7 @@ impl FromStr for BBEnglishDraughts {
 impl Bitboard for BBEnglishDraughts {
     type P = Piece;
 
-    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8) -> Result<&Self, BoardError> {
+    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: usize) -> Result<&Self, BoardError> {
         if pos > DATA_ENGLISH.valid_squares_count() - 1 {
             return Err(BoardError::PosOutOfBounds {
                 max: DATA_ENGLISH.valid_squares_count() - 1,
@@ -187,7 +187,7 @@ impl Bitboard for BBEnglishDraughts {
         Ok(self)
     }
 
-    fn get_piece_at(&self, pos: u8) -> Option<Self::P> {
+    fn get_piece_at(&self, pos: usize) -> Option<Self::P> {
         assert!(self.is_valid());
         let pos = pos as usize;
 

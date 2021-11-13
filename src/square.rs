@@ -14,7 +14,7 @@ pub enum Direction {
 // This struct assists in calculating squares
 // All boards with an even width have a "ghost column" attached to the end in-code
 pub struct SquareCalc {
-    width: u8,
+    width: usize,
 }
 
 impl Direction {
@@ -86,7 +86,7 @@ impl SquareCalc {
         }
     }
 
-    pub fn sparse(&self, x: u8) -> u8 {
+    pub fn sparse(&self, x: usize) -> usize {
         if self.width & 1 == 1 {
             x
         } else {
@@ -94,7 +94,7 @@ impl SquareCalc {
         }
     }
 
-    pub fn dense(&self, x: u8) -> u8 {
+    pub fn dense(&self, x: usize) -> usize {
         if self.width & 1 == 1 {
             x
         } else {
@@ -105,19 +105,19 @@ impl SquareCalc {
         }
     }
 
-    pub fn is_bounded(&self, x: u8) -> bool {
+    pub fn is_bounded(&self, x: usize) -> bool {
         x % (self.width + 1) != self.width
     }
 
     // This function assumes an already sparsed number
-    // It breaks automatically should the number attempt to go out of boundd
-    pub fn add_dir(&self, x: u8, dir: Direction, count: u8) -> u8 {
+    // It breaks automatically should the number attempt to go out of bounds
+    pub fn add_dir(&self, x: usize, dir: Direction, count: usize) -> usize {
         if count == 0 {
             return x;
         }
 
-        let mut x = x as i8;
-        let half_width = (self.width >> 1) as i8;
+        let mut x = x as isize;
+        let half_width = (self.width >> 1) as isize;
         let adder = match dir {
             Direction::NorthWest => -half_width - 1,
             Direction::NorthEast => -half_width,
@@ -126,19 +126,21 @@ impl SquareCalc {
             _ => todo!(),
         };
 
-        for i in 0..count {
+        for _ in 0..count {
             let new_val = x.checked_add(adder);
-            if new_val.is_none() || new_val.unwrap() < 0 || !self.is_bounded(new_val.unwrap() as u8)
+            if new_val.is_none()
+                || new_val.unwrap() < 0
+                || !self.is_bounded(new_val.unwrap() as usize)
             {
                 break;
             }
             x = new_val.unwrap();
         }
 
-        x as u8
+        x as usize
     }
 
-    pub fn add_dir_dense(&self, x: u8, dir: Direction, count: u8) -> u8 {
+    pub fn add_dir_dense(&self, x: usize, dir: Direction, count: usize) -> usize {
         self.dense(self.add_dir(self.sparse(x), dir, count))
     }
 }

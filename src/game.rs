@@ -48,16 +48,16 @@ pub mod default_piece {
 
 pub struct GameData {
     pub id: &'static str,
-    pub board_rows: u8,
-    pub board_columns: u8,
+    pub board_rows: usize,
+    pub board_columns: usize,
 }
 
 impl GameData {
-    pub fn board_size(&self) -> u8 {
+    pub fn board_size(&self) -> usize {
         self.board_rows * self.board_columns
     }
 
-    pub fn valid_squares_count(&self) -> u8 {
+    pub fn valid_squares_count(&self) -> usize {
         self.board_size() >> 1
     }
 }
@@ -74,9 +74,9 @@ pub trait Game: Sized {
 }
 
 pub trait GenMoves: Game {
-    fn moves_at(&self, pos: u8) -> Vec<Self::M>;
+    fn moves_at(&self, pos: usize) -> Vec<Self::M>;
 
-    fn captures_at(&mut self, pos: u8) -> Vec<Self::M>;
+    fn captures_at(&mut self, pos: usize) -> Vec<Self::M>;
 
     fn all_moves(&self) -> Vec<Self::M>;
 
@@ -86,9 +86,9 @@ pub trait GenMoves: Game {
 pub trait Bitboard: FromStr {
     type P;
 
-    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u8) -> Result<&Self, BoardError>;
+    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: usize) -> Result<&Self, BoardError>;
 
-    fn get_piece_at(&self, pos: u8) -> Option<Self::P>;
+    fn get_piece_at(&self, pos: usize) -> Option<Self::P>;
 
     fn is_valid(&self) -> bool;
 }

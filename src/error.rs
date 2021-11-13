@@ -13,11 +13,11 @@ pub enum InputError {
 #[derive(Error, Debug)]
 pub enum BoardError {
     #[error("pos out of bounds (expected maximum of {max}, found {found})")]
-    PosOutOfBounds { max: u8, found: u8 },
+    PosOutOfBounds { max: usize, found: usize },
     #[error("pos {0} is unexpectedly empty")]
-    UnexpectedEmpty(u8),
+    UnexpectedEmpty(usize),
     #[error("pos {0} is unexpectedly occupied")]
-    UnexpectedNonEmpty(u8),
+    UnexpectedNonEmpty(usize),
 }
 
 #[derive(Error, Debug)]
