@@ -40,6 +40,26 @@ impl Game for GameEnglishDraughts {
     // It also contains info on whether this is a promotion
     type UndoData = u32;
 
+    fn undo_data_of_move(&self, mv: &Self::M) -> Self::UndoData {
+        let mut val = mv.captures;
+        let piece = self
+            .board
+            .get_piece_at(mv.from)
+            .expect("move.from is empty - should never fire");
+
+        let crownhead = match piece.color {
+            Color::White => 0,
+            Color::Black => 7,
+        };
+
+        if piece.rank == Rank::Man && mv.to / (DATA_ENGLISH.board_columns >> 1) == crownhead {
+            val.bit_on(mv.to)
+                .expect("move.to is too big - should never fire");
+        }
+
+        val
+    }
+
     fn make_move(&mut self, mv: &Self::M) -> Result<&Self, BoardError> {
         let mut start_piece = if let Some(p) = self.board.get_piece_at(mv.from) {
             p
@@ -243,7 +263,7 @@ impl GenMoves for GameEnglishDraughts {
                 continue;
             }
 
-            let undo_data = self.board.kings & (1 << neighbor_pos);
+            let undo_data = self.undo_data_of_move(&m);
 
             self.make_move(&m)
                 .expect("unexpected error when making move");
