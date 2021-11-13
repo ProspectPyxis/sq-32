@@ -37,13 +37,15 @@ pub struct MoveEnglishDraughts {
 impl Game for GameEnglishDraughts {
     type M = MoveEnglishDraughts;
     // UndoData is a u32 representation of captured kings
+    // It also contains info on whether this is a promotion
     type UndoData = u32;
 
     fn make_move(&mut self, mv: &Self::M) -> Result<&Self, BoardError> {
-        let start_piece = self.board.get_piece_at(mv.from);
-        if start_piece.is_none() {
+        let mut start_piece = if let Some(p) = self.board.get_piece_at(mv.from) {
+            p
+        } else {
             return Err(BoardError::UnexpectedEmpty(mv.from));
-        }
+        };
         if self.board.get_piece_at(mv.to).is_some() {
             return Err(BoardError::UnexpectedNonEmpty(mv.to));
         }
@@ -62,7 +64,15 @@ impl Game for GameEnglishDraughts {
             }
         }
 
-        self.board.set_piece_at(start_piece, mv.to)?;
+        let crownhead = match start_piece.color {
+            Color::White => 0,
+            Color::Black => 7,
+        };
+        if mv.to / (DATA_ENGLISH.board_columns / 2) == crownhead && start_piece.rank == Rank::Man {
+            start_piece.rank = Rank::King;
+        }
+
+        self.board.set_piece_at(Some(start_piece), mv.to)?;
         self.board.set_piece_at(None, mv.from)?;
 
         self.active_player = self.active_player.opposite();
@@ -71,19 +81,21 @@ impl Game for GameEnglishDraughts {
     }
 
     fn unmake_move(&mut self, mv: &Self::M, undo: Self::UndoData) -> Result<&Self, BoardError> {
-        let end_piece = self.board.get_piece_at(mv.to);
-        if end_piece.is_none() {
+        let mut end_piece = if let Some(p) = self.board.get_piece_at(mv.to) {
+            p
+        } else {
             return Err(BoardError::UnexpectedEmpty(mv.to));
-        }
+        };
+
         if self.board.get_piece_at(mv.to).is_some() {
             return Err(BoardError::UnexpectedNonEmpty(mv.from));
         }
 
-        self.board.set_piece_at(end_piece, mv.from)?;
-        self.board.set_piece_at(None, mv.to)?;
-
         if mv.captures != 0 {
             for i in mv.captures.bits().ones() {
+                if i == mv.to {
+                    continue;
+                }
                 self.board.set_piece_at(
                     Some(Piece {
                         color: self.active_player,
@@ -98,6 +110,13 @@ impl Game for GameEnglishDraughts {
             }
         }
 
+        if undo.bit_get(mv.to).unwrap() && end_piece.rank == Rank::King {
+            end_piece.rank = Rank::Man;
+        }
+
+        self.board.set_piece_at(Some(end_piece), mv.from)?;
+        self.board.set_piece_at(None, mv.to)?;
+
         self.active_player = self.active_player.opposite();
 
         Ok(self)
@@ -107,9 +126,29 @@ impl Game for GameEnglishDraughts {
         let mut moves: Vec<Self::M> = Vec::new();
 
         let bitboard = match self.active_player {
-            Color::White => self.board.white,
-            Color::Black => self.board.black,
+            Color::White => self.board.white.bits().ones(),
+            Color::Black => self.board.black.bits().ones(),
         };
+
+        // First loop - get all captures
+        for i in &bitboard {
+            let mut caps = self.captures_at(*i);
+            if !caps.is_empty() {
+                moves.append(&mut caps);
+            }
+        }
+
+        if !moves.is_empty() {
+            return moves;
+        }
+
+        // Second loop - get all regular moves
+        for i in &bitboard {
+            let mut m = self.moves_at(*i);
+            if !m.is_empty() {
+                moves.append(&mut m);
+            }
+        }
 
         moves
     }
@@ -126,7 +165,7 @@ impl GenMoves for GameEnglishDraughts {
             None => return vec![],
         };
 
-        let dirs = if let Rank::King = piece.rank {
+        let dirs = if piece.rank == Rank::King {
             Direction::diagonals()
         } else {
             match piece.color {
