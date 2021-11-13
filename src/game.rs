@@ -60,6 +60,27 @@ impl GameData {
     pub fn valid_squares_count(&self) -> u8 {
         self.board_size() >> 1
     }
+
+    pub fn sparse(&self, x: u8) -> u8 {
+        if self.board_columns & 1 == 1 {
+            x
+        } else {
+            x + (x / self.board_columns)
+        }
+    }
+
+    pub fn dense(&self, x: u8) -> u8 {
+        if self.board_columns & 1 == 1 {
+            x
+        } else {
+            // Check if value would be out of bounds
+            assert_ne!(x % (self.board_columns + 1), self.board_columns);
+            // Integer ceiling division
+            let dividend = self.board_columns * x;
+            let divisor = self.board_columns + 1;
+            (dividend + divisor - 1) / divisor
+        }
+    }
 }
 
 pub trait Game: Sized {
