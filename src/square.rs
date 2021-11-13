@@ -16,6 +16,7 @@ pub enum Direction {
 // All boards with an even width have a "ghost column" attached to the end in-code
 pub struct SquareCalc {
     width: usize,
+    height: usize,
 }
 
 impl Direction {
@@ -76,6 +77,7 @@ impl From<GameData> for SquareCalc {
     fn from(dat: GameData) -> Self {
         SquareCalc {
             width: dat.board_columns,
+            height: dat.board_rows,
         }
     }
 }
@@ -84,6 +86,7 @@ impl SquareCalc {
     pub const fn from_const(dat: GameData) -> SquareCalc {
         SquareCalc {
             width: dat.board_columns,
+            height: dat.board_rows,
         }
     }
 
@@ -107,7 +110,9 @@ impl SquareCalc {
     }
 
     pub fn is_bounded(&self, x: usize) -> bool {
-        x % (self.width + 1) != self.width
+        (self.width & 1 == 1 && x < (self.width * self.height) >> 1)
+            || (x % (self.width + 1) != self.width
+                && x < ((self.height + 1) / 2) * (self.width + ((self.width & 1) ^ 1)))
     }
 
     // This function assumes an already sparsed number

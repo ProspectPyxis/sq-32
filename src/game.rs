@@ -67,6 +67,8 @@ pub trait Game: Sized {
     type M: Move;
     type UndoData;
 
+    fn init() -> Self;
+
     fn undo_data_of_move(&self, mv: &Self::M) -> Self::UndoData;
 
     fn make_move(&mut self, mv: &Self::M) -> Result<&Self, BoardError>;

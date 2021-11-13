@@ -28,9 +28,9 @@ pub struct BBEnglishDraughts {
 
 #[derive(Clone)]
 pub struct MoveEnglishDraughts {
-    from: usize,
-    to: usize,
-    captures: u32,
+    pub from: usize,
+    pub to: usize,
+    pub captures: u32,
     in_between: Vec<usize>,
 }
 
@@ -40,8 +40,16 @@ impl Game for GameEnglishDraughts {
     // It also contains info on whether this is a promotion
     type UndoData = u32;
 
+    fn init() -> Self {
+        GameEnglishDraughts {
+            board: BBEnglishDraughts::from_str("bbbbbbbbbbbbeeeeeeeewwwwwwwwwwww")
+                .expect("initial position failed"),
+            active_player: Color::White,
+        }
+    }
+
     fn undo_data_of_move(&self, mv: &Self::M) -> Self::UndoData {
-        let mut val = mv.captures;
+        let mut val = mv.captures & self.board.kings;
         let piece = self
             .board
             .get_piece_at(mv.from)
@@ -88,7 +96,7 @@ impl Game for GameEnglishDraughts {
             Color::White => 0,
             Color::Black => 7,
         };
-        if mv.to / (DATA_ENGLISH.board_columns / 2) == crownhead && start_piece.rank == Rank::Man {
+        if mv.to / (DATA_ENGLISH.board_columns >> 1) == crownhead && start_piece.rank == Rank::Man {
             start_piece.rank = Rank::King;
         }
 
@@ -107,18 +115,19 @@ impl Game for GameEnglishDraughts {
             return Err(BoardError::UnexpectedEmpty(mv.to));
         };
 
-        if self.board.get_piece_at(mv.to).is_some() {
+        if self.board.get_piece_at(mv.from).is_some() {
             return Err(BoardError::UnexpectedNonEmpty(mv.from));
+        }
+
+        if undo.bit_get(mv.to).unwrap() && end_piece.rank == Rank::King {
+            end_piece.rank = Rank::Man;
         }
 
         if mv.captures != 0 {
             for i in mv.captures.bits().ones() {
-                if i == mv.to {
-                    continue;
-                }
                 self.board.set_piece_at(
                     Some(Piece {
-                        color: self.active_player,
+                        color: end_piece.color.opposite(),
                         rank: if undo.bit_get(i).unwrap() {
                             Rank::King
                         } else {
@@ -128,10 +137,6 @@ impl Game for GameEnglishDraughts {
                     i,
                 )?;
             }
-        }
-
-        if undo.bit_get(mv.to).unwrap() && end_piece.rank == Rank::King {
-            end_piece.rank = Rank::Man;
         }
 
         self.board.set_piece_at(Some(end_piece), mv.from)?;
@@ -215,7 +220,7 @@ impl GenMoves for GameEnglishDraughts {
             None => return vec![],
         };
 
-        let dirs = if let Rank::King = piece.rank {
+        let dirs = if piece.rank == Rank::King {
             Direction::diagonals()
         } else {
             match piece.color {
@@ -250,7 +255,7 @@ impl GenMoves for GameEnglishDraughts {
             } else {
                 continue;
             };
-            if self.board.get_piece_at(target_pos).is_none() {
+            if self.board.get_piece_at(target_pos).is_some() {
                 continue;
             }
 
@@ -272,14 +277,15 @@ impl GenMoves for GameEnglishDraughts {
                 .expect("unexpected error when unmaking move");
 
             if submoves.is_empty() {
+                moves.push(m);
                 continue;
             }
             for mut submove in submoves {
-                let mut new_move = m.clone();
-                new_move.in_between.push(m.to);
+                let mut new_move = MoveEnglishDraughts::new(pos, submove.to);
                 new_move.in_between.append(&mut submove.in_between);
+                new_move.in_between.push(m.to);
+                new_move.merge_captures(m.captures);
                 new_move.merge_captures(submove.captures);
-                new_move.to = submove.to;
 
                 moves.push(new_move);
             }
@@ -364,7 +370,7 @@ impl Bitboard for BBEnglishDraughts {
 
     fn get_piece_at(&self, pos: usize) -> Option<Self::P> {
         assert!(self.is_valid());
-        let pos = pos as usize;
+        assert!(pos < DATA_ENGLISH.valid_squares_count());
 
         if !(self.white | self.black).bit_get(pos).unwrap() {
             None
