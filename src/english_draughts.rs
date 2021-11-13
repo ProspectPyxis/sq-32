@@ -129,9 +129,8 @@ impl Game for GameEnglishDraughts {
                 Color::White => self.board.black |= mv.captures,
                 Color::Black => self.board.white |= mv.captures,
             };
-            let captured_kings = mv.captures & undo;
-            self.board.kings |= captured_kings;
-            self.board.men |= mv.captures & !captured_kings;
+            self.board.kings |= mv.captures & undo;
+            self.board.men |= mv.captures & !undo;
         }
 
         self.board.set_piece_at(Some(end_piece), mv.from)?;
@@ -264,7 +263,6 @@ impl GenMoves for GameEnglishDraughts {
             }
 
             let undo_data = self.undo_data_of_move(&m);
-
             self.make_move(&m)
                 .expect("unexpected error when making move");
             let submoves = self.captures_at(target_pos);
