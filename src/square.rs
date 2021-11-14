@@ -95,11 +95,7 @@ impl SquareCalc {
 
     #[inline]
     pub fn sparse(&self, x: usize) -> usize {
-        if self.even_width {
-            x + (x / self.width)
-        } else {
-            x
-        }
+        x + (x * self.even_width as usize / self.width)
     }
 
     #[inline]
@@ -126,6 +122,7 @@ impl SquareCalc {
         }
     }
 
+    #[inline]
     pub fn is_bounded(&self, x: usize) -> bool {
         x < self.bounding_area && (x % (self.width + 1) != self.width || !self.even_width)
     }
@@ -159,18 +156,12 @@ impl SquareCalc {
 
     #[inline]
     pub fn try_add_dir(&self, x: usize, dir: &Direction, count: usize) -> Option<usize> {
-        if count == 0 {
-            return Some(x);
+        let x = (x as isize).checked_add(self.dir_to_offset(dir).checked_mul(count as isize)?)?;
+        if x.is_negative() || !self.is_bounded(x as usize) {
+            None
+        } else {
+            Some(x as usize)
         }
-
-        let x = x as isize;
-
-        let x = x.checked_add(self.dir_to_offset(dir).checked_mul(count as isize)?)?;
-        if x < 0 || !self.is_bounded(x as usize) {
-            return None;
-        }
-
-        Some(x as usize)
     }
 
     #[inline]

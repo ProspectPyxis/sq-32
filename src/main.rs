@@ -16,7 +16,7 @@ fn main() {
         let duration = Instant::now().duration_since(then);
         let nps = (nodes as f64 / duration.as_secs_f64()).floor();
         println!(
-            "Positions at depth {}: {} ({}ms, {} nodes/sec)",
+            "Positions at depth {}: {} ({} ms, {} nodes/sec)",
             i,
             nodes,
             duration.as_micros(),
