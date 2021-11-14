@@ -1,17 +1,17 @@
 use crate::error::{BoardError, InputError, Sq32Error};
 use crate::game::default_piece::*;
 use crate::game::{Bitboard, Game, GameData, GenMoves, Move};
-use crate::square::{Direction, SquareCalc};
-use dotbits::{BitManip, BitVec};
+use crate::square::{directions, SquareCalc};
+use dotbits::BitManip;
 use std::str::FromStr;
 
-const DATA_ENGLISH: GameData = GameData {
+const GAMEDATA: GameData = GameData {
     id: "english",
     board_rows: 8,
     board_columns: 8,
 };
 
-const SCALC: SquareCalc = SquareCalc::from_const(DATA_ENGLISH);
+const SCALC: SquareCalc = SquareCalc::from_const(GAMEDATA);
 
 pub struct GameEnglishDraughts {
     board: BBEnglishDraughts,
@@ -60,7 +60,7 @@ impl Game for GameEnglishDraughts {
             Color::Black => 7,
         };
 
-        if piece.rank == Rank::Man && mv.to / (DATA_ENGLISH.board_columns >> 1) == crownhead {
+        if piece.rank == Rank::Man && mv.to / (GAMEDATA.board_columns >> 1) == crownhead {
             val.bit_on(mv.to)
                 .expect("move.to is too big - should never fire");
         }
@@ -81,8 +81,7 @@ impl Game for GameEnglishDraughts {
             if (self.board.white | self.board.black) & mv.captures != mv.captures {
                 return Err(BoardError::UnexpectedEmpty(
                     *((self.board.white | self.board.black) & !(mv.captures))
-                        .bits()
-                        .ones()
+                        .bit_ones()
                         .first()
                         .unwrap(),
                 ));
@@ -97,7 +96,7 @@ impl Game for GameEnglishDraughts {
             Color::White => 0,
             Color::Black => 7,
         };
-        if mv.to / (DATA_ENGLISH.board_columns >> 1) == crownhead && start_piece.rank == Rank::Man {
+        if mv.to / (GAMEDATA.board_columns >> 1) == crownhead && start_piece.rank == Rank::Man {
             start_piece.rank = Rank::King;
         }
 
@@ -145,16 +144,16 @@ impl Game for GameEnglishDraughts {
         let mut moves: Vec<Self::M> = Vec::new();
 
         let bitboard = match self.active_player {
-            Color::White => self.board.white.bits().ones(),
-            Color::Black => self.board.black.bits().ones(),
+            Color::White => self.board.white,
+            Color::Black => self.board.black,
         };
 
         // First loop - get all captures
-        for i in &bitboard {
-            let mut caps = self.captures_at(*i);
-            if !caps.is_empty() {
-                moves.append(&mut caps);
+        for i in 0..32 {
+            if !bitboard.bit_get(i).unwrap() {
+                continue;
             }
+            self.add_captures(i, &mut moves);
         }
 
         if !moves.is_empty() {
@@ -162,11 +161,11 @@ impl Game for GameEnglishDraughts {
         }
 
         // Second loop - get all regular moves
-        for i in &bitboard {
-            let mut m = self.moves_at(*i);
-            if !m.is_empty() {
-                moves.append(&mut m);
+        for i in 0..32 {
+            if !bitboard.bit_get(i).unwrap() {
+                continue;
             }
+            self.add_moves(i, &mut moves);
         }
 
         moves
@@ -174,52 +173,45 @@ impl Game for GameEnglishDraughts {
 }
 
 impl GenMoves for GameEnglishDraughts {
-    fn valid_count() -> usize {
-        DATA_ENGLISH.valid_squares_count()
-    }
-
-    fn moves_at(&self, pos: usize) -> Vec<Self::M> {
+    fn add_moves(&self, pos: usize, movevec: &mut Vec<Self::M>) {
         let piece = match self.board.get_piece_at(pos) {
             Some(p) => p,
-            None => return vec![],
+            None => return,
         };
 
         let dirs = if piece.rank == Rank::King {
-            Direction::diagonals()
+            directions::DIAGONALS
         } else {
             match piece.color {
-                Color::White => Direction::diagonals_north(),
-                Color::Black => Direction::diagonals_south(),
+                Color::White => directions::NORTH_DIAGONALS,
+                Color::Black => directions::SOUTH_DIAGONALS,
             }
         };
 
-        let mut moves: Vec<Self::M> = Vec::new();
         for d in dirs {
-            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, &d, 1) {
+            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, d, 1) {
                 n
             } else {
                 continue;
             };
             if self.board.get_piece_at(target_pos).is_none() {
-                moves.push(MoveEnglishDraughts::new(pos, target_pos));
+                movevec.push(MoveEnglishDraughts::new(pos, target_pos));
             }
         }
-
-        moves
     }
 
-    fn captures_at(&mut self, pos: usize) -> Vec<Self::M> {
+    fn add_captures(&mut self, pos: usize, movevec: &mut Vec<Self::M>) {
         let piece = match self.board.get_piece_at(pos) {
             Some(p) => p,
-            None => return vec![],
+            None => return,
         };
 
         let dirs = if piece.rank == Rank::King {
-            Direction::diagonals()
+            directions::DIAGONALS
         } else {
             match piece.color {
-                Color::White => Direction::diagonals_north(),
-                Color::Black => Direction::diagonals_south(),
+                Color::White => directions::NORTH_DIAGONALS,
+                Color::Black => directions::SOUTH_DIAGONALS,
             }
         };
         let crownhead = match piece.color {
@@ -227,38 +219,38 @@ impl GenMoves for GameEnglishDraughts {
             Color::Black => 7,
         };
 
-        let mut moves: Vec<Self::M> = Vec::new();
-
         for d in dirs {
-            let neighbor_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, &d, 1) {
+            let neighbor_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, d, 1) {
                 n
             } else {
                 continue;
             };
 
-            if let Some(p) = self.board.get_piece_at(neighbor_pos) {
-                if piece.color == p.color {
-                    continue;
-                }
-            } else {
+            let opposite_bitboard = match piece.color {
+                Color::White => self.board.black,
+                Color::Black => self.board.white,
+            };
+            if !opposite_bitboard.bit_get(neighbor_pos).unwrap() {
                 continue;
             }
 
-            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, &d, 2) {
+            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, d, 2) {
                 n
             } else {
                 continue;
             };
-            if self.board.get_piece_at(target_pos).is_some() {
+            if (self.board.white | self.board.black)
+                .bit_get(target_pos)
+                .unwrap()
+            {
                 continue;
             }
 
             let mut m = MoveEnglishDraughts::new(pos, target_pos);
             m.set_capture(neighbor_pos);
 
-            if target_pos / (DATA_ENGLISH.board_columns / 2) == crownhead && piece.rank == Rank::Man
-            {
-                moves.push(m);
+            if target_pos / (GAMEDATA.board_columns / 2) == crownhead && piece.rank == Rank::Man {
+                movevec.push(m);
                 continue;
             }
 
@@ -270,21 +262,19 @@ impl GenMoves for GameEnglishDraughts {
                 .expect("unexpected error when unmaking move");
 
             if submoves.is_empty() {
-                moves.push(m);
+                movevec.push(m);
                 continue;
             }
-            for mut submove in submoves {
+            for submove in submoves {
                 let mut new_move = MoveEnglishDraughts::new(pos, submove.to);
-                new_move.in_between.append(&mut submove.in_between);
+                new_move.in_between = submove.in_between;
                 new_move.in_between.push(m.to);
                 new_move.merge_captures(m.captures);
                 new_move.merge_captures(submove.captures);
 
-                moves.push(new_move);
+                movevec.push(new_move);
             }
         }
-
-        moves
     }
 }
 
@@ -292,9 +282,9 @@ impl FromStr for BBEnglishDraughts {
     type Err = Sq32Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() != DATA_ENGLISH.valid_squares_count() as usize {
+        if s.len() != GAMEDATA.valid_squares_count() as usize {
             return Err(InputError::InputLengthInvalid {
-                expected: DATA_ENGLISH.valid_squares_count() as usize,
+                expected: GAMEDATA.valid_squares_count() as usize,
                 len: s.len(),
             }
             .into());
@@ -335,9 +325,9 @@ impl Bitboard for BBEnglishDraughts {
     type P = Piece;
 
     fn set_piece_at(&mut self, piece: Option<Self::P>, pos: usize) -> Result<&Self, BoardError> {
-        if pos > DATA_ENGLISH.valid_squares_count() - 1 {
+        if pos > GAMEDATA.valid_squares_count() - 1 {
             return Err(BoardError::PosOutOfBounds {
-                max: DATA_ENGLISH.valid_squares_count() - 1,
+                max: GAMEDATA.valid_squares_count() - 1,
                 found: pos,
             });
         }
@@ -362,8 +352,8 @@ impl Bitboard for BBEnglishDraughts {
     }
 
     fn get_piece_at(&self, pos: usize) -> Option<Self::P> {
-        assert!(self.is_valid());
-        assert!(pos < DATA_ENGLISH.valid_squares_count());
+        // assert!(self.is_valid());
+        // assert!(pos < GAMEDATA.valid_squares_count());
 
         if !(self.white | self.black).bit_get(pos).unwrap() {
             None

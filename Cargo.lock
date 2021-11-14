@@ -3,25 +3,10 @@
 version = 3
 
 [[package]]
-name = "autocfg"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
-
-[[package]]
 name = "dotbits"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7432ed96939e801a14d57ed564ca2acd0b9312bc48aff87240d4df9dd0eadaf"
-
-[[package]]
-name = "num-traits"
-version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a64b1ec5cda2586e284722486d802acf1f7dbdc623e2bfc57e65ca1cd099290"
-dependencies = [
- "autocfg",
-]
+checksum = "957fa792f0a324fe82aed8275201c074fc34eb8b2e2b2ef5d22b96931fa73be0"
 
 [[package]]
 name = "proc-macro2"
@@ -42,11 +27,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "smallvec"
+version = "1.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ecab6c735a6bb4139c0caafd0cc3635748bbb3acf4550e8138122099251f309"
+
+[[package]]
 name = "sq-32"
 version = "0.2.0"
 dependencies = [
  "dotbits",
- "num-traits",
+ "smallvec",
  "thiserror",
 ]
 

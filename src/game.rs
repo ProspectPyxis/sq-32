@@ -54,11 +54,11 @@ pub struct GameData {
 }
 
 impl GameData {
-    pub fn board_size(&self) -> usize {
+    pub const fn board_size(&self) -> usize {
         self.board_rows * self.board_columns
     }
 
-    pub fn valid_squares_count(&self) -> usize {
+    pub const fn valid_squares_count(&self) -> usize {
         self.board_size() >> 1
     }
 }
@@ -79,26 +79,20 @@ pub trait Game: Sized {
 }
 
 pub trait GenMoves: Game {
-    fn valid_count() -> usize;
+    fn add_moves(&self, pos: usize, movevec: &mut Vec<Self::M>);
 
-    fn moves_at(&self, pos: usize) -> Vec<Self::M>;
+    fn add_captures(&mut self, pos: usize, movevec: &mut Vec<Self::M>);
 
-    fn captures_at(&mut self, pos: usize) -> Vec<Self::M>;
-
-    fn all_moves(&self) -> Vec<Self::M> {
-        let mut moves: Vec<Self::M> = Vec::new();
-        for i in 0..Self::valid_count() {
-            moves.append(&mut self.moves_at(i));
-        }
-        moves
+    fn moves_at(&self, pos: usize) -> Vec<Self::M> {
+        let mut v = Vec::new();
+        self.add_moves(pos, &mut v);
+        v
     }
 
-    fn all_captures(&mut self) -> Vec<Self::M> {
-        let mut caps: Vec<Self::M> = Vec::new();
-        for i in 0..Self::valid_count() {
-            caps.append(&mut self.captures_at(i));
-        }
-        caps
+    fn captures_at(&mut self, pos: usize) -> Vec<Self::M> {
+        let mut v = Vec::new();
+        self.add_captures(pos, &mut v);
+        v
     }
 }
 

@@ -4,7 +4,7 @@ use std::time::Instant;
 
 fn main() {
     // Perft at depth n
-    let n = 9;
+    let n = 10;
     let mut game = GameEnglishDraughts::init();
     println!("Running perft at depths up to {}", n);
 
