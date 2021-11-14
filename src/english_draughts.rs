@@ -218,6 +218,11 @@ impl GenMoves for GameEnglishDraughts {
             Color::White => 0,
             Color::Black => 7,
         };
+        let opposite_bitboard = match piece.color {
+            Color::White => self.board.black,
+            Color::Black => self.board.white,
+        };
+        let full_bitboard = self.board.white | self.board.black;
 
         for d in dirs {
             let neighbor_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, d, 1) {
@@ -226,10 +231,6 @@ impl GenMoves for GameEnglishDraughts {
                 continue;
             };
 
-            let opposite_bitboard = match piece.color {
-                Color::White => self.board.black,
-                Color::Black => self.board.white,
-            };
             if !opposite_bitboard.bit_get(neighbor_pos).unwrap() {
                 continue;
             }
@@ -239,10 +240,7 @@ impl GenMoves for GameEnglishDraughts {
             } else {
                 continue;
             };
-            if (self.board.white | self.board.black)
-                .bit_get(target_pos)
-                .unwrap()
-            {
+            if full_bitboard.bit_get(target_pos).unwrap() {
                 continue;
             }
 

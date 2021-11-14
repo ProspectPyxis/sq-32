@@ -45,14 +45,6 @@ pub enum Direction {
     West,
 }
 
-// This struct assists in calculating squares
-// All boards with an even width have a "ghost column" attached to the end in-code
-pub struct SquareCalc {
-    width: usize,
-    even_width: bool,
-    bounding_area: usize,
-}
-
 impl Direction {
     pub fn opposite(self) -> Direction {
         match self {
@@ -66,6 +58,14 @@ impl Direction {
             Direction::West => Direction::East,
         }
     }
+}
+
+// This struct assists in calculating squares
+// All boards with an even width have a "ghost column" attached to the end in-code
+pub struct SquareCalc {
+    width: usize,
+    even_width: bool,
+    bounding_area: usize,
 }
 
 impl From<GameData> for SquareCalc {
