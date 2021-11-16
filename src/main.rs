@@ -3,35 +3,48 @@ use sq_32::game::Game;
 use std::time::Instant;
 
 fn main() {
-    // Perft at depth n
-    let n = 10;
-    let mut game = GameEnglishDraughts::init();
-    println!("Running perft at depths up to {}", n);
+    // Perft at depth n...
+    let n = 12;
+    // ...m times
+    let m = 3;
 
-    let mut all_nps: Vec<f64> = Vec::new();
+    let mut avg_nps: Vec<f64> = Vec::new();
 
-    for i in 1..=n {
-        let then = Instant::now();
-        let nodes = sq_32::perft(i, &mut game);
-        let duration = Instant::now().duration_since(then);
-        let nps = (nodes as f64 / duration.as_secs_f64()).floor();
-        println!(
-            "Positions at depth {}: {} ({} ms, {} nodes/sec)",
-            i,
-            nodes,
-            duration.as_micros(),
-            nps,
-        );
-        all_nps.push(nps);
+    for l in 1..=m {
+        let mut game = GameEnglishDraughts::init();
+        println!("Running perft at depths up to {}", n);
+
+        let mut all_nps: Vec<f64> = Vec::new();
+        let mut mc = 0;
+
+        for i in 1..=n {
+            let then = Instant::now();
+            let (nodes, count) = sq_32::perft(i, &mut game);
+            let duration = Instant::now().duration_since(then);
+            let nps = (nodes as f64 / duration.as_secs_f64()).floor();
+            println!(
+                "Positions at depth {}: {} ({} ms, {} nodes/sec)",
+                i,
+                nodes,
+                duration.as_micros(),
+                nps,
+            );
+            mc = mc.max(count);
+            all_nps.push(nps);
+        }
+
+        let total_nps = (all_nps.iter().fold(0.0, |acc, x| acc + x) / all_nps.len() as f64).floor();
+
+        println!("Perft {} complete", l);
+        println!("Average nodes/sec: {}", total_nps);
+        // println!("Maximum move count in position: {}", mc);
+        avg_nps.push(total_nps);
     }
 
-    let first_nps = *all_nps.first().unwrap();
-    println!("Perft complete");
+    println!("\nAll perft runs complete");
     println!(
-        "Average nodes/sec: {}",
-        all_nps
-            .iter()
-            .fold(first_nps, |acc, x| (acc + x) / 2.0)
-            .round(),
+        "Final average nodes/sec across {} runs: {}",
+        m,
+        (avg_nps.iter().fold(0.0, |acc, x| acc + x) / avg_nps.len() as f64).floor()
     );
 }

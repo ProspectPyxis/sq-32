@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "dotbits"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "957fa792f0a324fe82aed8275201c074fc34eb8b2e2b2ef5d22b96931fa73be0"
+checksum = "aff0592028330a2657e2bb7141a6d65c82cf12841021778defa7b9734166ca7a"
 
 [[package]]
 name = "proc-macro2"
@@ -32,7 +32,6 @@ version = "0.2.0"
 dependencies = [
  "dotbits",
  "thiserror",
- "tinyvec",
 ]
 
 [[package]]
@@ -65,21 +64,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "tinyvec"
-version = "1.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c1c1d5a42b6245520c249549ec267180beaffcc0615401ac8e31853d4b6d8d2"
-dependencies = [
- "tinyvec_macros",
-]
-
-[[package]]
-name = "tinyvec_macros"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "unicode-xid"

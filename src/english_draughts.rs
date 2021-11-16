@@ -1,7 +1,7 @@
 use crate::error::{BoardError, InputError, Sq32Error};
 use crate::game::default_piece::*;
 use crate::game::{Bitboard, Game, GameData, GenMoves, Move};
-use crate::square::{directions, SquareCalc};
+use crate::square::{self, directions};
 use dotbits::BitManip;
 use std::str::FromStr;
 
@@ -11,7 +11,12 @@ const GAMEDATA: GameData = GameData {
     board_columns: 8,
 };
 
-const SCALC: SquareCalc = SquareCalc::from_const(GAMEDATA);
+const OFFSETS: [i32; 8] = square::gen_offsets(GAMEDATA);
+
+const CROWNHEAD: [u64; 2] = [0xF, 0x780000000];
+
+// A mask to check for invalid squares
+const GHOST: u64 = 0xFFFFFFF804020100;
 
 pub struct GameEnglishDraughts {
     board: BBEnglishDraughts,
@@ -20,25 +25,25 @@ pub struct GameEnglishDraughts {
 
 #[derive(Default)]
 pub struct BBEnglishDraughts {
-    black: u32,
-    white: u32,
-    men: u32,
-    kings: u32,
+    black: u64,
+    white: u64,
+    kings: u64,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MoveEnglishDraughts {
-    pub from: usize,
-    pub to: usize,
-    pub captures: u32,
-    in_between: Vec<usize>,
+    pub from: u64,
+    pub to: u64,
+    pub captures: u64,
+    in_between: Vec<u64>,
+    is_final: bool,
 }
 
 impl Game for GameEnglishDraughts {
     type M = MoveEnglishDraughts;
-    // UndoData is a u32 representation of captured kings
+    // UndoData is a u64 representation of captured kings
     // It also contains info on whether this is a promotion
-    type UndoData = u32;
+    type UndoData = u64;
 
     fn init() -> Self {
         GameEnglishDraughts {
@@ -55,14 +60,8 @@ impl Game for GameEnglishDraughts {
             .get_piece_at(mv.from)
             .expect("move.from is empty - should never fire");
 
-        let crownhead = match piece.color {
-            Color::White => 0,
-            Color::Black => 7,
-        };
-
-        if piece.rank == Rank::Man && mv.to / (GAMEDATA.board_columns >> 1) == crownhead {
-            val.bit_on(mv.to)
-                .expect("move.to is too big - should never fire");
+        if piece.rank == Rank::Man && mv.to & CROWNHEAD[piece.color as usize] != 0 {
+            val |= mv.to;
         }
 
         val
@@ -72,38 +71,39 @@ impl Game for GameEnglishDraughts {
         let mut start_piece = if let Some(p) = self.board.get_piece_at(mv.from) {
             p
         } else {
-            return Err(BoardError::UnexpectedEmpty(mv.from));
+            return Err(BoardError::UnexpectedEmpty(
+                mv.from.trailing_zeros() as usize
+            ));
         };
-        if self.board.get_piece_at(mv.to).is_some() {
-            return Err(BoardError::UnexpectedNonEmpty(mv.to));
+
+        if mv.from != mv.to && self.board.occupied() & mv.to != 0 {
+            return Err(BoardError::UnexpectedNonEmpty(
+                mv.to.trailing_zeros() as usize
+            ));
         }
         if mv.captures != 0 {
-            if (self.board.white | self.board.black) & mv.captures != mv.captures {
+            /*
+            if self.board.occupied() & mv.captures != mv.captures {
                 return Err(BoardError::UnexpectedEmpty(
-                    *((self.board.white | self.board.black) & !(mv.captures))
-                        .bit_ones()
-                        .first()
-                        .unwrap(),
+                    (self.board.occupied() & !(mv.captures)).trailing_zeros() as usize,
                 ));
             }
+            */
             self.board.black &= !mv.captures;
             self.board.white &= !mv.captures;
-            self.board.men &= !mv.captures;
             self.board.kings &= !mv.captures;
         }
 
-        let crownhead = match start_piece.color {
-            Color::White => 0,
-            Color::Black => 7,
-        };
-        if mv.to / (GAMEDATA.board_columns >> 1) == crownhead && start_piece.rank == Rank::Man {
+        if mv.to & CROWNHEAD[start_piece.color as usize] != 0 && start_piece.rank == Rank::Man {
             start_piece.rank = Rank::King;
         }
 
-        self.board.set_piece_at(Some(start_piece), mv.to)?;
-        self.board.set_piece_at(None, mv.from)?;
+        self.board.set_piece_at(None, mv.from);
+        self.board.set_piece_at(Some(start_piece), mv.to);
 
-        self.active_player = self.active_player.opposite();
+        if mv.is_final {
+            self.active_player = self.active_player.opposite();
+        }
 
         Ok(self)
     }
@@ -112,14 +112,18 @@ impl Game for GameEnglishDraughts {
         let mut end_piece = if let Some(p) = self.board.get_piece_at(mv.to) {
             p
         } else {
-            return Err(BoardError::UnexpectedEmpty(mv.to));
+            return Err(BoardError::UnexpectedEmpty(mv.to.trailing_zeros() as usize));
         };
 
+        /*
         if self.board.get_piece_at(mv.from).is_some() {
-            return Err(BoardError::UnexpectedNonEmpty(mv.from));
+            return Err(BoardError::UnexpectedNonEmpty(
+                mv.from.trailing_zeros() as usize
+            ));
         }
+        */
 
-        if undo.bit_get(mv.to).unwrap() && end_piece.rank == Rank::King {
+        if undo & mv.to != 0 && end_piece.rank == Rank::King {
             end_piece.rank = Rank::Man;
         }
 
@@ -129,43 +133,41 @@ impl Game for GameEnglishDraughts {
                 Color::Black => self.board.white |= mv.captures,
             };
             self.board.kings |= mv.captures & undo;
-            self.board.men |= mv.captures & !undo;
         }
 
-        self.board.set_piece_at(Some(end_piece), mv.from)?;
-        self.board.set_piece_at(None, mv.to)?;
+        self.board.set_piece_at(None, mv.to);
+        self.board.set_piece_at(Some(end_piece), mv.from);
 
-        self.active_player = self.active_player.opposite();
+        if mv.is_final {
+            self.active_player = self.active_player.opposite();
+        }
 
         Ok(self)
     }
 
     fn gen_moves(&mut self) -> Vec<Self::M> {
-        let mut moves: Vec<Self::M> = Vec::new();
+        let mut moves: Vec<Self::M> = Vec::with_capacity(16);
 
-        let bitboard = match self.active_player {
-            Color::White => self.board.white,
-            Color::Black => self.board.black,
-        };
-
-        // First loop - get all captures
-        for i in 0..32 {
-            if !bitboard.bit_get(i).unwrap() {
-                continue;
+        let mut movers = self.any_captures();
+        if movers != 0 {
+            // First loop - get all captures
+            while movers != 0 {
+                let pos = 1 << movers.trailing_zeros();
+                self.add_captures(pos, &mut moves);
+                movers &= !pos;
             }
-            self.add_captures(i, &mut moves);
-        }
-
-        if !moves.is_empty() {
             return moves;
         }
 
-        // Second loop - get all regular moves
-        for i in 0..32 {
-            if !bitboard.bit_get(i).unwrap() {
-                continue;
+        let mut movers = self.any_moves();
+        if movers != 0 {
+            // Second loop - get all regular moves
+            while movers != 0 {
+                let pos = 1 << movers.trailing_zeros();
+                self.add_moves(pos, &mut moves);
+                movers &= !pos;
             }
-            self.add_moves(i, &mut moves);
+            return moves;
         }
 
         moves
@@ -173,7 +175,9 @@ impl Game for GameEnglishDraughts {
 }
 
 impl GenMoves for GameEnglishDraughts {
-    fn add_moves(&self, pos: usize, movevec: &mut Vec<Self::M>) {
+    type Bitsize = u64;
+
+    fn add_moves(&self, pos: u64, movevec: &mut Vec<Self::M>) {
         let piece = match self.board.get_piece_at(pos) {
             Some(p) => p,
             None => return,
@@ -189,18 +193,14 @@ impl GenMoves for GameEnglishDraughts {
         };
 
         for d in dirs {
-            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, d, 1) {
-                n
-            } else {
-                continue;
-            };
-            if self.board.get_piece_at(target_pos).is_none() {
-                movevec.push(MoveEnglishDraughts::new(pos, target_pos));
+            let target_pos = pos.signed_left_shift(OFFSETS[*d as usize]);
+            if target_pos & self.board.empty() != 0 {
+                movevec.push(MoveEnglishDraughts::new(pos, target_pos, true));
             }
         }
     }
 
-    fn add_captures(&mut self, pos: usize, movevec: &mut Vec<Self::M>) {
+    fn add_captures(&mut self, pos: u64, movevec: &mut Vec<Self::M>) {
         let piece = match self.board.get_piece_at(pos) {
             Some(p) => p,
             None => return,
@@ -213,41 +213,33 @@ impl GenMoves for GameEnglishDraughts {
                 Color::White => directions::NORTH_DIAGONALS,
                 Color::Black => directions::SOUTH_DIAGONALS,
             }
-        };
-        let crownhead = match piece.color {
-            Color::White => 0,
-            Color::Black => 7,
         };
         let opposite_bitboard = match piece.color {
             Color::White => self.board.black,
             Color::Black => self.board.white,
         };
-        let full_bitboard = self.board.white | self.board.black;
 
         for d in dirs {
-            let neighbor_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, d, 1) {
-                n
-            } else {
-                continue;
-            };
+            let offset = OFFSETS[*d as usize];
+            let neighbor_pos = pos.signed_left_shift(offset);
 
-            if !opposite_bitboard.bit_get(neighbor_pos).unwrap() {
+            if opposite_bitboard & neighbor_pos == 0 {
+                // no piece to capture, or neighbor is out of bounds
                 continue;
             }
 
-            let target_pos = if let Some(n) = SCALC.try_add_dir_dense(pos, d, 2) {
-                n
-            } else {
-                continue;
-            };
-            if full_bitboard.bit_get(target_pos).unwrap() {
+            let target_pos = neighbor_pos.signed_left_shift(offset);
+            if self.board.empty() & target_pos == 0 {
+                // target is occupied, or target is out of bounds
                 continue;
             }
 
-            let mut m = MoveEnglishDraughts::new(pos, target_pos);
-            m.set_capture(neighbor_pos);
+            let mut m = MoveEnglishDraughts::new(pos, target_pos, false);
+            m.merge_captures(neighbor_pos);
 
-            if target_pos / (GAMEDATA.board_columns / 2) == crownhead && piece.rank == Rank::Man {
+            if target_pos & CROWNHEAD[piece.color as usize] != 0 && piece.rank == Rank::Man {
+                // move promotes - no need to continue
+                m.is_final = true;
                 movevec.push(m);
                 continue;
             }
@@ -255,24 +247,103 @@ impl GenMoves for GameEnglishDraughts {
             let undo_data = self.undo_data_of_move(&m);
             self.make_move(&m)
                 .expect("unexpected error when making move");
-            let submoves = self.captures_at(target_pos);
-            self.unmake_move(&m, undo_data)
-                .expect("unexpected error when unmaking move");
 
-            if submoves.is_empty() {
+            if self.any_captures() & target_pos != 0 {
+                let submoves = self.captures_at(target_pos);
+                for submove in submoves {
+                    let mut new_move = MoveEnglishDraughts::new(pos, submove.to, true);
+                    new_move.in_between = submove.in_between;
+                    new_move.in_between.push(m.to);
+                    new_move.merge_captures(m.captures);
+                    new_move.merge_captures(submove.captures);
+
+                    movevec.push(new_move);
+                }
+            } else {
+                self.unmake_move(&m, undo_data)
+                    .expect("unexpected error when unmaking move");
+                m.is_final = true;
                 movevec.push(m);
                 continue;
             }
-            for submove in submoves {
-                let mut new_move = MoveEnglishDraughts::new(pos, submove.to);
-                new_move.in_between = submove.in_between;
-                new_move.in_between.push(m.to);
-                new_move.merge_captures(m.captures);
-                new_move.merge_captures(submove.captures);
 
-                movevec.push(new_move);
+            self.unmake_move(&m, undo_data)
+                .expect("unexpected error when unmaking move");
+        }
+    }
+
+    fn any_moves(&self) -> u64 {
+        // man_dirs and king_dirs should be opposite of normal, since this function works backwards
+        // from empty squares
+        let (self_bb, man_dirs, king_dirs) = match self.active_player {
+            Color::White => (
+                self.board.white,
+                directions::SOUTH_DIAGONALS,
+                directions::NORTH_DIAGONALS,
+            ),
+            Color::Black => (
+                self.board.black,
+                directions::NORTH_DIAGONALS,
+                directions::SOUTH_DIAGONALS,
+            ),
+        };
+
+        let mut movers: u64 = 0;
+
+        for d in man_dirs {
+            movers |= self.board.empty().signed_left_shift(OFFSETS[*d as usize]) & self_bb;
+        }
+
+        let kings_bb = self_bb & self.board.kings;
+        if kings_bb != 0 {
+            for d in king_dirs {
+                movers |= self.board.empty().signed_left_shift(OFFSETS[*d as usize]) & kings_bb;
             }
         }
+
+        movers
+    }
+
+    fn any_captures(&self) -> u64 {
+        // man_dirs and king_dirs should be opposite of normal, since this function works backwards
+        // from empty squares
+        let (self_bb, opposite_bb, man_dirs, king_dirs) = match self.active_player {
+            Color::White => (
+                self.board.white,
+                self.board.black,
+                directions::SOUTH_DIAGONALS,
+                directions::NORTH_DIAGONALS,
+            ),
+            Color::Black => (
+                self.board.black,
+                self.board.white,
+                directions::NORTH_DIAGONALS,
+                directions::SOUTH_DIAGONALS,
+            ),
+        };
+
+        let mut movers: u64 = 0;
+
+        for d in man_dirs {
+            let offset = OFFSETS[*d as usize];
+            let shift = self.board.empty().signed_left_shift(offset) & opposite_bb;
+            if shift != 0 {
+                movers |= shift.signed_left_shift(offset) & self_bb;
+            }
+        }
+
+        let kings_bb = self_bb & self.board.kings;
+        if kings_bb != 0 {
+            for d in king_dirs {
+                let offset = OFFSETS[*d as usize];
+                let shift = self.board.empty().signed_left_shift(offset) & opposite_bb;
+                if shift != 0 {
+                    movers |= shift.signed_left_shift(offset) & kings_bb;
+                }
+            }
+        }
+
+        movers
     }
 }
 
@@ -291,18 +362,19 @@ impl FromStr for BBEnglishDraughts {
         let mut bb = Self::default();
 
         for (i, c) in s.chars().enumerate() {
+            let i = i + (i / 8); // skip ghost squares
             match c {
                 'w' => {
-                    bb.set_piece_at(Some(WHITE_MAN), i)?;
+                    bb.set_piece_at(Some(WHITE_MAN), 1 << i);
                 }
                 'W' => {
-                    bb.set_piece_at(Some(WHITE_KING), i)?;
+                    bb.set_piece_at(Some(WHITE_KING), 1 << i);
                 }
                 'b' => {
-                    bb.set_piece_at(Some(BLACK_MAN), i)?;
+                    bb.set_piece_at(Some(BLACK_MAN), 1 << i);
                 }
                 'B' => {
-                    bb.set_piece_at(Some(BLACK_KING), i)?;
+                    bb.set_piece_at(Some(BLACK_KING), 1 << i);
                 }
                 'e' => (),
                 _ => {
@@ -321,60 +393,69 @@ impl FromStr for BBEnglishDraughts {
 
 impl Bitboard for BBEnglishDraughts {
     type P = Piece;
+    type Bitsize = u64;
 
-    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: usize) -> Result<&Self, BoardError> {
-        if pos > GAMEDATA.valid_squares_count() - 1 {
-            return Err(BoardError::PosOutOfBounds {
-                max: GAMEDATA.valid_squares_count() - 1,
-                found: pos,
-            });
-        }
-
-        self.black &= !(1 << pos);
-        self.white &= !(1 << pos);
-        self.men &= !(1 << pos);
-        self.kings &= !(1 << pos);
-
+    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: u64) {
         if let Some(p) = piece {
             match p.color {
-                Color::Black => self.black |= 1 << pos,
-                Color::White => self.white |= 1 << pos,
+                Color::Black => {
+                    self.black |= pos;
+                    self.white &= !pos;
+                }
+                Color::White => {
+                    self.white |= pos;
+                    self.black &= !pos;
+                }
             }
             match p.rank {
-                Rank::Man => self.men |= 1 << pos,
-                Rank::King => self.kings |= 1 << pos,
+                Rank::Man => {
+                    self.kings &= !pos;
+                }
+                Rank::King => {
+                    self.kings |= pos;
+                }
             }
+        } else {
+            self.black &= !pos;
+            self.white &= !pos;
+            self.kings &= !pos;
         }
-
-        Ok(self)
     }
 
-    fn get_piece_at(&self, pos: usize) -> Option<Self::P> {
+    fn get_piece_at(&self, pos: u64) -> Option<Self::P> {
         // assert!(self.is_valid());
-        // assert!(pos < GAMEDATA.valid_squares_count());
-
-        if !(self.white | self.black).bit_get(pos).unwrap() {
+        if self.occupied() & pos == 0 {
             None
         } else {
             Some(Piece {
-                color: if self.white.bit_get(pos).unwrap() {
+                color: if self.white & pos != 0 {
                     Color::White
                 } else {
                     Color::Black
                 },
-                rank: if self.men.bit_get(pos).unwrap() {
-                    Rank::Man
-                } else {
+                rank: if self.kings & pos != 0 {
                     Rank::King
+                } else {
+                    Rank::Man
                 },
             })
         }
     }
 
+    #[inline]
+    fn empty(&self) -> Self::Bitsize {
+        self.occupied() ^ !GHOST
+    }
+
+    #[inline]
+    fn occupied(&self) -> Self::Bitsize {
+        self.black | self.white
+    }
+
     fn is_valid(&self) -> bool {
         self.black & self.white == 0
-            && self.men & self.kings == 0
-            && (self.black | self.white) ^ (self.men | self.kings) == 0
+            && !self.occupied() & self.kings == 0
+            && self.occupied() & GHOST == 0
     }
 }
 
@@ -400,20 +481,17 @@ impl Move for MoveEnglishDraughts {
 }
 
 impl MoveEnglishDraughts {
-    pub fn new(from: usize, to: usize) -> MoveEnglishDraughts {
+    pub fn new(from: u64, to: u64, is_final: bool) -> MoveEnglishDraughts {
         MoveEnglishDraughts {
             from,
             to,
             captures: 0,
             in_between: vec![],
+            is_final,
         }
     }
 
-    pub fn set_capture(&mut self, pos: usize) {
-        self.captures.bit_on(pos).expect("out of bounds");
-    }
-
-    pub fn merge_captures(&mut self, captures: u32) {
+    pub fn merge_captures(&mut self, captures: u64) {
         self.captures |= captures;
     }
 }

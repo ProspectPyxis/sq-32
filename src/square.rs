@@ -33,7 +33,7 @@ pub mod directions {
     pub const SOUTH_DIAGONALS: &[Direction] = &[Direction::SouthEast, Direction::SouthWest];
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Copy, Clone)]
 pub enum Direction {
     NorthWest,
     NorthEast,
@@ -60,112 +60,26 @@ impl Direction {
     }
 }
 
-// This struct assists in calculating squares
-// All boards with an even width have a "ghost column" attached to the end in-code
-pub struct SquareCalc {
-    width: usize,
-    even_width: bool,
-    bounding_area: usize,
-}
-
-impl From<GameData> for SquareCalc {
-    fn from(dat: GameData) -> Self {
-        SquareCalc {
-            width: dat.board_columns,
-            even_width: dat.board_columns & 1 == 0,
-            bounding_area: (dat.board_rows >> 1)
-                * (dat
-                    .board_columns
-                    .saturating_add((dat.board_columns & 1) ^ 1)),
+pub const fn gen_offsets(dat: GameData) -> [i32; 8] {
+    let mut i: usize = 0;
+    let mut arr = [0i32; 8];
+    let half_width = dat.board_columns as i32 >> 1;
+    loop {
+        if i == 8 {
+            break;
         }
+        arr[i] = match i {
+            0 => -half_width - 1,
+            1 => -half_width,
+            2 => half_width + 1,
+            3 => half_width,
+            4 => dat.board_columns as i32 + 1,
+            5 => 1,
+            6 => -(dat.board_columns as i32) - 1,
+            7 => -1,
+            _ => 0, // Should never reach this
+        };
+        i += 1;
     }
-}
-
-impl SquareCalc {
-    pub const fn from_const(dat: GameData) -> SquareCalc {
-        SquareCalc {
-            width: dat.board_columns,
-            even_width: dat.board_columns & 1 == 0,
-            bounding_area: (dat.board_rows >> 1)
-                * (dat
-                    .board_columns
-                    .saturating_add((dat.board_columns & 1) ^ 1)),
-        }
-    }
-
-    #[inline]
-    pub fn sparse(&self, x: usize) -> usize {
-        x + (x * self.even_width as usize / self.width)
-    }
-
-    #[inline]
-    pub fn dense(&self, x: usize) -> usize {
-        if self.even_width {
-            // Check if value would be out of bounds
-            // assert!(self.is_bounded(x));
-            // Integer ceiling division
-            ((self.width * x) + self.width) / (self.width + 1)
-        } else {
-            x
-        }
-    }
-
-    #[inline]
-    pub fn dir_to_offset(&self, dir: &Direction) -> isize {
-        let half_width = self.width as isize >> 1;
-        match dir {
-            Direction::NorthWest => -half_width - 1,
-            Direction::NorthEast => -half_width,
-            Direction::SouthEast => half_width + 1,
-            Direction::SouthWest => half_width,
-            _ => todo!(),
-        }
-    }
-
-    #[inline]
-    pub fn is_bounded(&self, x: usize) -> bool {
-        x < self.bounding_area && (x % (self.width + 1) != self.width || !self.even_width)
-    }
-
-    // This function assumes an already sparsed number
-    // It breaks automatically should the number attempt to go out of bounds
-    pub fn add_dir(&self, x: usize, dir: &Direction, count: usize) -> usize {
-        if count == 0 {
-            return x;
-        }
-
-        let mut x = x as isize;
-
-        for _ in 0..count {
-            let new_val = x.checked_add(self.dir_to_offset(dir));
-            if new_val.is_none()
-                || new_val.unwrap() < 0
-                || !self.is_bounded(new_val.unwrap() as usize)
-            {
-                break;
-            }
-            x = new_val.unwrap();
-        }
-
-        x as usize
-    }
-
-    pub fn add_dir_dense(&self, x: usize, dir: &Direction, count: usize) -> usize {
-        self.dense(self.add_dir(self.sparse(x), dir, count))
-    }
-
-    #[inline]
-    pub fn try_add_dir(&self, x: usize, dir: &Direction, count: usize) -> Option<usize> {
-        let x = (x as isize).checked_add(self.dir_to_offset(dir).checked_mul(count as isize)?)?;
-        if x.is_negative() || !self.is_bounded(x as usize) {
-            None
-        } else {
-            Some(x as usize)
-        }
-    }
-
-    #[inline]
-    pub fn try_add_dir_dense(&self, x: usize, dir: &Direction, count: usize) -> Option<usize> {
-        Some(self.dense(self.try_add_dir(self.sparse(x), dir, count)?))
-    }
+    arr
 }

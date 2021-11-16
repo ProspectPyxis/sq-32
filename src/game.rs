@@ -76,20 +76,30 @@ pub trait Game: Sized {
     fn unmake_move(&mut self, mv: &Self::M, undo: Self::UndoData) -> Result<&Self, BoardError>;
 
     fn gen_moves(&mut self) -> Vec<Self::M>;
+
+    fn increment_player(&mut self) {}
 }
 
 pub trait GenMoves: Game {
-    fn add_moves(&self, pos: usize, movevec: &mut Vec<Self::M>);
+    type Bitsize;
 
-    fn add_captures(&mut self, pos: usize, movevec: &mut Vec<Self::M>);
+    fn add_moves(&self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
 
-    fn moves_at(&self, pos: usize) -> Vec<Self::M> {
+    fn add_captures(&mut self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
+
+    fn any_moves(&self) -> Self::Bitsize;
+
+    fn any_captures(&self) -> Self::Bitsize;
+
+    #[inline]
+    fn moves_at(&self, pos: Self::Bitsize) -> Vec<Self::M> {
         let mut v = Vec::new();
         self.add_moves(pos, &mut v);
         v
     }
 
-    fn captures_at(&mut self, pos: usize) -> Vec<Self::M> {
+    #[inline]
+    fn captures_at(&mut self, pos: Self::Bitsize) -> Vec<Self::M> {
         let mut v = Vec::new();
         self.add_captures(pos, &mut v);
         v
@@ -98,10 +108,15 @@ pub trait GenMoves: Game {
 
 pub trait Bitboard: FromStr {
     type P;
+    type Bitsize;
 
-    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: usize) -> Result<&Self, BoardError>;
+    fn set_piece_at(&mut self, piece: Option<Self::P>, pos: Self::Bitsize);
 
-    fn get_piece_at(&self, pos: usize) -> Option<Self::P>;
+    fn get_piece_at(&self, pos: Self::Bitsize) -> Option<Self::P>;
+
+    fn occupied(&self) -> Self::Bitsize;
+
+    fn empty(&self) -> Self::Bitsize;
 
     fn is_valid(&self) -> bool;
 }
