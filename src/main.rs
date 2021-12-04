@@ -4,9 +4,9 @@ use std::time::Instant;
 
 fn main() {
     // Perft at depth n...
-    let n = 12;
+    let n = 13;
     // ...m times
-    let m = 3;
+    let m = 1;
 
     let mut avg_nps: Vec<f64> = Vec::new();
 
@@ -37,7 +37,7 @@ fn main() {
 
         println!("Perft {} complete", l);
         println!("Average nodes/sec: {}", total_nps);
-        // println!("Maximum move count in position: {}", mc);
+        println!("Maximum move count in position: {}", mc);
         avg_nps.push(total_nps);
     }
 

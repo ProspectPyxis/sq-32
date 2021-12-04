@@ -25,7 +25,7 @@ pub mod default_piece {
         Black,
     }
 
-    #[derive(PartialEq, Eq)]
+    #[derive(PartialEq, Eq, Copy, Clone)]
     pub enum Rank {
         Man,
         King,
@@ -80,28 +80,29 @@ pub trait Game: Sized {
     fn increment_player(&mut self) {}
 }
 
-pub trait GenMoves: Game {
-    type Bitsize;
+pub trait GenMoves: Bitboard {
+    type M: Move;
+    type Turn;
 
-    fn add_moves(&self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
+    fn gen_non_captures(&self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
 
-    fn add_captures(&mut self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
+    fn gen_captures(&mut self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
 
-    fn any_moves(&self) -> Self::Bitsize;
+    fn any_moves_for(&self, turn: Self::Turn) -> Self::Bitsize;
 
-    fn any_captures(&self) -> Self::Bitsize;
+    fn any_captures_for(&self, turn: Self::Turn) -> Self::Bitsize;
 
     #[inline]
-    fn moves_at(&self, pos: Self::Bitsize) -> Vec<Self::M> {
+    fn non_captures_at(&self, pos: Self::Bitsize) -> Vec<Self::M> {
         let mut v = Vec::new();
-        self.add_moves(pos, &mut v);
+        self.gen_non_captures(pos, &mut v);
         v
     }
 
     #[inline]
     fn captures_at(&mut self, pos: Self::Bitsize) -> Vec<Self::M> {
         let mut v = Vec::new();
-        self.add_captures(pos, &mut v);
+        self.gen_captures(pos, &mut v);
         v
     }
 }

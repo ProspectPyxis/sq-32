@@ -60,7 +60,7 @@ impl Direction {
     }
 }
 
-pub const fn gen_offsets(dat: GameData) -> [i32; 8] {
+pub const fn precalculate_offsets(dat: GameData) -> [i32; 8] {
     let mut i: usize = 0;
     let mut arr = [0i32; 8];
     let half_width = dat.board_columns as i32 >> 1;
