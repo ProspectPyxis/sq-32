@@ -66,6 +66,7 @@ impl GameData {
 pub trait Game: Sized {
     type M: Move;
     type UndoData;
+    type MoveList;
 
     fn init() -> Self;
 
@@ -75,7 +76,7 @@ pub trait Game: Sized {
 
     fn unmake_move(&mut self, mv: &Self::M, undo: Self::UndoData) -> Result<&Self, BoardError>;
 
-    fn gen_moves(&mut self) -> Vec<Self::M>;
+    fn gen_moves(&mut self) -> Self::MoveList;
 
     fn increment_player(&mut self) {}
 }
@@ -83,15 +84,17 @@ pub trait Game: Sized {
 pub trait GenMoves: Bitboard {
     type M: Move;
     type Turn;
+    type MoveList;
 
-    fn gen_non_captures(&self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
+    fn gen_non_captures(&self, movevec: &mut Self::MoveList, turn: Self::Turn);
 
-    fn gen_captures(&mut self, pos: Self::Bitsize, movevec: &mut Vec<Self::M>);
+    fn gen_captures(&mut self, movevec: &mut Self::MoveList, turn: Self::Turn);
 
-    fn any_moves_for(&self, turn: Self::Turn) -> Self::Bitsize;
+    fn all_non_captures_for(&self, turn: Self::Turn) -> Self::Bitsize;
 
-    fn any_captures_for(&self, turn: Self::Turn) -> Self::Bitsize;
+    fn all_captures_for(&self, turn: Self::Turn) -> Self::Bitsize;
 
+    /*
     #[inline]
     fn non_captures_at(&self, pos: Self::Bitsize) -> Vec<Self::M> {
         let mut v = Vec::new();
@@ -105,6 +108,7 @@ pub trait GenMoves: Bitboard {
         self.gen_captures(pos, &mut v);
         v
     }
+    */
 }
 
 pub trait Bitboard: FromStr {

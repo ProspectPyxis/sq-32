@@ -1,23 +1,22 @@
+use arrayvec::ArrayVec;
 use sq_32::english_draughts::GameEnglishDraughts;
 use sq_32::game::Game;
 use std::time::Instant;
 
+const DEPTH: usize = 12;
+const TIMES: usize = 3;
+
 fn main() {
-    // Perft at depth n...
-    let n = 13;
-    // ...m times
-    let m = 1;
+    let mut avg_nps: ArrayVec<f64, TIMES> = ArrayVec::new();
 
-    let mut avg_nps: Vec<f64> = Vec::new();
-
-    for l in 1..=m {
+    for l in 1..=TIMES {
         let mut game = GameEnglishDraughts::init();
-        println!("Running perft at depths up to {}", n);
+        println!("Running perft at depths up to {}", DEPTH);
 
-        let mut all_nps: Vec<f64> = Vec::new();
+        let mut all_nps: ArrayVec<f64, DEPTH> = ArrayVec::new();
         let mut mc = 0;
 
-        for i in 1..=n {
+        for i in 1..=DEPTH {
             let then = Instant::now();
             let (nodes, count) = sq_32::perft(i, &mut game);
             let duration = Instant::now().duration_since(then);
@@ -44,7 +43,7 @@ fn main() {
     println!("\nAll perft runs complete");
     println!(
         "Final average nodes/sec across {} runs: {}",
-        m,
+        TIMES,
         (avg_nps.iter().fold(0.0, |acc, x| acc + x) / avg_nps.len() as f64).floor()
     );
 }

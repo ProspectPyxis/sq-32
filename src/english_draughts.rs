@@ -2,6 +2,7 @@ use crate::error::{BoardError, InputError};
 use crate::game::default_piece::*;
 use crate::game::{Bitboard, Game, GameData, GenMoves, Move};
 use crate::square::{self, directions};
+use arrayvec::ArrayVec;
 use bit_iter::BitIter;
 use dotbits::BitManip;
 use std::str::FromStr;
@@ -18,6 +19,8 @@ const CROWNHEAD: [u64; 2] = [0xF, 0x780000000];
 
 // A mask to check for invalid squares
 const GHOST: u64 = 0xFFFFFFF804020100;
+
+const MAX_MOVES: usize = 32;
 
 #[derive(Clone)]
 pub struct GameEnglishDraughts {
@@ -37,7 +40,7 @@ pub struct MoveEnglishDraughts {
     pub from: u64,
     pub to: u64,
     pub captures: u64,
-    pub in_betweens: [u64; 8],
+    pub in_betweens: [u8; 8],
 }
 
 impl Game for GameEnglishDraughts {
@@ -45,6 +48,7 @@ impl Game for GameEnglishDraughts {
     // UndoData is a u64 representation of captured kings
     // It also contains info on whether this is a promotion
     type UndoData = u64;
+    type MoveList = ArrayVec<MoveEnglishDraughts, MAX_MOVES>;
 
     fn init() -> Self {
         GameEnglishDraughts {
@@ -142,25 +146,13 @@ impl Game for GameEnglishDraughts {
         Ok(self)
     }
 
-    fn gen_moves(&mut self) -> Vec<Self::M> {
-        let mut moves: Vec<Self::M> = Vec::with_capacity(16);
+    fn gen_moves(&mut self) -> Self::MoveList {
+        let mut moves: Self::MoveList = ArrayVec::new();
 
-        let movers = self.board.any_captures_for(self.active_player);
-        if movers != 0 {
-            // First loop - get all captures
-            for i in BitIter::from(movers) {
-                self.board.gen_captures(1 << i, &mut moves);
-            }
-            return moves;
-        }
+        self.board.gen_captures(&mut moves, self.active_player);
 
-        let movers = self.board.any_moves_for(self.active_player);
-        if movers != 0 {
-            // Second loop - get all regular moves
-            for i in BitIter::from(movers) {
-                self.board.gen_non_captures(1 << i, &mut moves);
-            }
-            return moves;
+        if moves.is_empty() {
+            self.board.gen_non_captures(&mut moves, self.active_player);
         }
 
         moves
@@ -280,42 +272,84 @@ impl Bitboard for BBEnglishDraughts {
 impl GenMoves for BBEnglishDraughts {
     type M = MoveEnglishDraughts;
     type Turn = Color;
+    type MoveList = ArrayVec<MoveEnglishDraughts, MAX_MOVES>;
 
-    fn gen_non_captures(&self, pos: u64, movevec: &mut Vec<Self::M>) {
-        let piece = match self.get_piece_at(pos) {
-            Some(p) => p,
-            None => return,
+    fn gen_non_captures(&self, movevec: &mut Self::MoveList, turn: Color) {
+        let (man_dirs, king_dirs) = match turn {
+            Color::White => (directions::SOUTH_DIAGONALS, directions::NORTH_DIAGONALS),
+            Color::Black => (directions::NORTH_DIAGONALS, directions::SOUTH_DIAGONALS),
         };
+        let self_bb = self.current_board(&turn);
 
-        let dirs = if piece.rank == Rank::King {
-            directions::DIAGONALS
-        } else {
-            match piece.color {
-                Color::White => directions::NORTH_DIAGONALS,
-                Color::Black => directions::SOUTH_DIAGONALS,
-            }
-        };
-
-        let valid_moves: u64 = self.empty()
-            & dirs.iter().fold(0u64, |acc, &x| {
-                acc | pos.signed_left_shift(OFFSETS[x as usize])
-            });
-
-        for i in BitIter::from(valid_moves) {
-            movevec.push(MoveEnglishDraughts::new(pos, 1 << i));
+        macro_rules! get_in_dir {
+            ($dirs:ident, $bb:ident) => {
+                for d in $dirs {
+                    let offset = OFFSETS[*d as usize];
+                    let bb = self.empty().signed_left_shift(offset) & $bb;
+                    if bb != 0 {
+                        for i in BitIter::from(bb) {
+                            let pos = 1 << i;
+                            movevec.push(MoveEnglishDraughts::new(
+                                pos,
+                                pos.signed_right_shift(offset),
+                            ));
+                        }
+                    }
+                }
+            };
         }
+
+        get_in_dir!(man_dirs, self_bb);
+
+        let kings_bb = self_bb & self.kings;
+
+        get_in_dir!(king_dirs, kings_bb);
     }
 
-    fn gen_captures(&mut self, pos: u64, movevec: &mut Vec<Self::M>) {
-        let piece = match self.get_piece_at(pos) {
-            Some(p) => p,
-            None => return,
+    fn gen_captures(&mut self, movevec: &mut Self::MoveList, turn: Color) {
+        let (man_dirs, king_dirs) = match turn {
+            Color::White => (directions::SOUTH_DIAGONALS, directions::NORTH_DIAGONALS),
+            Color::Black => (directions::NORTH_DIAGONALS, directions::SOUTH_DIAGONALS),
         };
+        let self_bb = self.current_board(&turn);
+        let opp_bb = self.opposite_board(&turn);
 
-        self.recursive_capture_part(movevec, &piece, &mut [0; 8], pos, pos, 0);
+        macro_rules! get_in_dir {
+            ($dirs:ident, $bb:ident) => {
+                for d in $dirs {
+                    let offset = OFFSETS[*d as usize];
+                    let bb = (self.empty().signed_left_shift(offset) & opp_bb)
+                        .signed_left_shift(offset)
+                        & $bb;
+
+                    for i in BitIter::from(bb) {
+                        let pos = 1 << i;
+                        let piece = match self.get_piece_at(pos) {
+                            Some(p) => p,
+                            None => return,
+                        };
+
+                        self.recursive_capture_part(
+                            movevec,
+                            &piece,
+                            &mut [0; 8],
+                            pos,
+                            pos.signed_right_shift(offset * 2),
+                            pos.signed_right_shift(offset),
+                        );
+                    }
+                }
+            };
+        }
+
+        get_in_dir!(man_dirs, self_bb);
+
+        let king_bb = self_bb & self.kings;
+
+        get_in_dir!(king_dirs, king_bb);
     }
 
-    fn any_moves_for(&self, color: Color) -> u64 {
+    fn all_non_captures_for(&self, color: Color) -> u64 {
         // man_dirs and king_dirs should be opposite of normal, since this function works backwards
         // from empty squares
         let (self_bb, man_dirs, king_dirs) = match color {
@@ -347,7 +381,7 @@ impl GenMoves for BBEnglishDraughts {
         movers
     }
 
-    fn any_captures_for(&self, color: Color) -> u64 {
+    fn all_captures_for(&self, color: Color) -> u64 {
         // man_dirs and king_dirs should be opposite of normal, since this function works backwards
         // from empty squares
         let (self_bb, opposite_bb, man_dirs, king_dirs) = match color {
@@ -391,6 +425,13 @@ impl GenMoves for BBEnglishDraughts {
 }
 
 impl BBEnglishDraughts {
+    pub fn current_board(&self, color: &Color) -> u64 {
+        match color {
+            Color::White => self.white,
+            Color::Black => self.black,
+        }
+    }
+
     pub fn opposite_board(&self, color: &Color) -> u64 {
         match color {
             Color::White => self.black,
@@ -400,9 +441,9 @@ impl BBEnglishDraughts {
 
     pub fn recursive_capture_part(
         &self,
-        movevec: &mut Vec<MoveEnglishDraughts>,
+        movevec: &mut ArrayVec<MoveEnglishDraughts, MAX_MOVES>,
         piece: &Piece,
-        in_betweens: &mut [u64; 8],
+        in_betweens: &mut [u8; 8],
         start: u64,
         pos: u64,
         captures: u64,
@@ -437,7 +478,8 @@ impl BBEnglishDraughts {
                 }
 
                 if captures != 0 {
-                    in_betweens[captures.count_ones() as usize - 1] = pos;
+                    in_betweens[captures.count_ones() as usize - 1] =
+                        pos.trailing_zeros() as u8 + 1;
                 }
 
                 self.recursive_capture_part(
@@ -464,25 +506,23 @@ impl BBEnglishDraughts {
 
 impl Move for MoveEnglishDraughts {
     fn to_string(&self, _: bool) -> String {
-        // let mut movestr = self.from.to_string();
+        let mut movestr = (self.from.trailing_zeros() + 1).to_string();
 
-        /*
         if self.captures == 0 {
             movestr.push('-');
         } else {
-            if !self.in_between.is_empty() {
-                for i in &self.in_between {
-                    movestr.push('x');
-                    movestr.push_str((i + 1).to_string().as_str());
+            for i in self.in_betweens {
+                if i == 0 {
+                    break;
                 }
+                movestr.push('x');
+                movestr.push_str((i).to_string().as_str());
             }
             movestr.push('x');
         }
-        movestr.push_str(self.to.to_string().as_str());
-        */
+        movestr.push_str((self.to.trailing_zeros() + 1).to_string().as_str());
 
-        // movestr
-        (self.from.trailing_zeros() + 1).to_string()
+        movestr
     }
 }
 
@@ -500,7 +540,7 @@ impl MoveEnglishDraughts {
         from: u64,
         to: u64,
         captures: u64,
-        in_betweens: [u64; 8],
+        in_betweens: [u8; 8],
     ) -> MoveEnglishDraughts {
         MoveEnglishDraughts {
             from,
