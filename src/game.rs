@@ -1,4 +1,5 @@
 use crate::error::BoardError;
+use std::fmt::Display;
 use std::str::FromStr;
 
 pub mod default_piece {
@@ -64,7 +65,7 @@ impl GameData {
 }
 
 pub trait Game: Sized {
-    type M: Move;
+    type M: Display;
     type UndoData;
     type MoveList;
 
